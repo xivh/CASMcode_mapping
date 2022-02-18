@@ -4,6 +4,8 @@
 
 #include "casm/casm_io/json/jsonParser.hh"
 #include "casm/crystallography/BasicStructure.hh"
+#include "casm/crystallography/BasicStructureTools.hh"
+#include "casm/crystallography/CanonicalForm.hh"
 #include "casm/crystallography/io/BasicStructureIO.hh"
 
 #define STRINGIFY(x) #x
@@ -16,258 +18,305 @@ namespace CASMpy {
 
 using namespace CASM;
 
-xtal::Lattice make_lattice(Eigen::Ref<Eigen::Matrix3d const> const &L) {
-  return xtal::Lattice{L};
-}
-
-// {"axis_names", "basis"}
-typedef std::pair<std::vector<std::string>, Eigen::MatrixXd> DoFSetInput;
-
-/// \brief Construct DoFSetInput
+/// \brief Lattice mapping transformation
 ///
-/// \param axis_names DoFSet axis names. Size equals number of columns in basis.
-/// \param basis Basis vectors, as columns. `x_standard = basis * x_prim`
+/// The mapping transformation has the form:
 ///
-DoFSetInput make_dofsetinput(std::vector<std::string> const &axis_names,
-                             Eigen::MatrixXd const &basis) {
-  return DoFSetInput(axis_names, basis);
+/// \f[
+///     L_1 T N = V Q L_2.
+/// \f]
+/// Variables:
+/// - \f$L_1\f$: a reference parent lattice, represented as a 3x3
+///   matrix whose columns are the lattice vectors.
+/// - \f$(L_1 * T)\f$: a superlattice of the reference parent lattice, to be
+///   mapped to, represented as a 3x3 matrix whose columns are the lattice
+///   vectors.
+/// - \f$L_2\f$: the child lattice to be mapped, represented
+///   as a 3x3 matrix whose columns are the lattice vectors
+/// - \f$N\f$: a unimodular matrix (integer valued, with \f$\det{N}=1\f$,
+///   though represented with a floating point matrix for multiplication
+///   purposes) that generates lattice vectors \f$(L_1 T N)\f$ of
+///   lattices that are equivalent to a superlattice of the reference parent
+///   lattice \f$(L_1 T)\f$
+///
+struct LatticeMapping {
+  Eigen::Matrix3d Q;
+  Eigen::Matrix3d V;
+  Eigen::Matrix3d N;
+  Eigen::Matrix3d T;
+};
+
+Eigen::Matrix3d get_latticemapping_Q(LatticeMapping const &lattice_mapping) {
+  return lattice_mapping.Q;
 }
 
-std::map<std::string, xtal::SpeciesProperty> make_species_properties(
-    std::map<std::string, Eigen::MatrixXd> species_properties) {
-  std::map<std::string, xtal::SpeciesProperty> result;
-  for (auto const &pair : species_properties) {
-    result.emplace(pair.first, xtal::SpeciesProperty{AnisoValTraits(pair.first),
-                                                     pair.second});
-  }
-  return result;
+Eigen::Matrix3d get_latticemapping_V(LatticeMapping const &lattice_mapping) {
+  return lattice_mapping.V;
 }
 
-xtal::AtomPosition make_atom_position(
-    std::string name, Eigen::Vector3d pos,
-    std::map<std::string, xtal::SpeciesProperty> properties = {}) {
-  xtal::AtomPosition atom(pos, name);
-  atom.set_properties(properties);
-  return atom;
+Eigen::Matrix3d get_latticemapping_N(LatticeMapping const &lattice_mapping) {
+  return lattice_mapping.N;
 }
 
-std::map<std::string, Eigen::MatrixXd> get_atom_position_properties(
-    xtal::AtomPosition const &atom) {
-  std::map<std::string, Eigen::MatrixXd> result;
-  for (auto const &pair : atom.properties()) {
-    result.emplace(pair.first, pair.second.value());
-  }
-  return result;
+Eigen::Matrix3d get_latticemapping_T(LatticeMapping const &lattice_mapping) {
+  return lattice_mapping.T;
 }
 
-xtal::Molecule make_molecule(
-    std::string name, std::vector<xtal::AtomPosition> atoms = {},
-    bool divisible = false,
-    std::map<std::string, xtal::SpeciesProperty> properties = {}) {
-  xtal::Molecule mol(name, atoms, divisible);
-  mol.set_properties(properties);
-  return mol;
+/// \brief Deformation gradient, child to parent, F = V * Q
+Eigen::Matrix3d get_latticemapping_F(LatticeMapping const &lattice_mapping) {
+  return lattice_mapping.V * lattice_mapping.Q;
 }
 
-std::map<std::string, Eigen::MatrixXd> get_molecule_properties(
-    xtal::Molecule const &mol) {
-  std::map<std::string, Eigen::MatrixXd> result;
-  for (auto const &pair : mol.properties()) {
-    result.emplace(pair.first, pair.second.value());
-  }
-  return result;
+/// \brief Atom mapping transformation
+///
+/// The assignment portion of the structure mapping algorithm finds
+/// solutions \f$(p_i, \vec{t}, \vec{d}(i))\f$ of:
+/// \f[
+///     \vec{r_1}(i) + \vec{d}(i) = V * Q * \vec{r_2}(p_i) + \vec{t}
+/// \f]
+///
+/// where:
+/// - \f$\vec{r_1}(i)\f$: Vector of coordinates of atoms in the parent
+///   superstructure. The value \f$\vec{r_1}(i)\f$ represents the Cartesian
+///   coordinate of the \f$i\f$-th atom in the parent superstructure. The parent
+///   superstructure is not returned directly as part of the mapping results,
+///   but it can be constructed using:
+///
+///       xtal::SimpleStructure parent_superstructure = make_superstructure(
+///           T * N, parent_structure);
+///
+///   where \f$T\f$, and\f$N\f$ come from the lattice mapping solution. Then
+///   the \f$i\f$-th atom coordinate, \f$\vec{r_1}(i)\f$, is equal to:
+///
+///       parent_superstructure.atom_info.coords.col(i)
+///
+/// - \f$\vec{r_2}(i)\f$: Vector of coordinates of atoms in the unmapped child
+///   structure. The value \f$\vec{r_2}(i)\f$ represents the Cartesian
+///   coordinate of the \f$i\f$-th atom in the unmapped child structure.
+/// - \f$V * Q\f$: Lattice transformation, from the unmapped child superlattice
+///   to the parent superlattice, as determined by a solution to the lattice
+///   mapping problem.
+/// - \f$p_i\f$: A permutation vector, describes which atom in the unmapped
+///   child structure (\f$p_i\f$) is mapped to the i-th site of the mapped
+///   structure. Values of \f$p_i\f$ greater than the number of atoms in the
+///   unmapped structure indicate inferred vacancies.
+/// - \f$\vec{t}\f$: A translation vector, in Cartesian coordinates, of the de-
+///   rotated and undeformed (mapped) child superstructure that minimizes the
+///   atomic displacement cost.
+/// - \f$\vec{d}(i)\f$: The displacement associated with the atom at the i-th
+///   site in parent superstructure.
+///
+/// Additionally, structures with magnetic spin may have time reversal symmetry
+/// which may relate the child structure to the lattice structure.
+struct AtomMapping {
+  Eigen::MatrixXd displacement;
+  std::vector<Index> permutation;
+  Eigen::Vector3d translation;
+  bool time_reversal;
+};
+
+Eigen::MatrixXd get_atom_mapping_displacement(AtomMapping const &atom_mapping) {
+  return atom_mapping.displacement;
 }
 
-/// \brief Construct xtal::BasicStructure from JSON string
-xtal::BasicStructure basicstructure_from_json(std::string const &prim_json_str,
-                                              double xtal_tol) {
-  jsonParser json{prim_json_str};
-  ParsingDictionary<AnisoValTraits> const *aniso_val_dict = nullptr;
-  return read_prim(json, xtal_tol, aniso_val_dict);
+std::vector<Index> get_atom_mapping_permutation(
+    AtomMapping const &atom_mapping) {
+  return atom_mapping.permutation;
 }
 
-/// \brief Format xtal::BasicStructure as JSON string
-std::string basicstructure_to_json(xtal::BasicStructure const &prim) {
-  jsonParser json;
-  write_prim(prim, json, FRAC);
-  std::stringstream ss;
-  ss << json;
-  return ss.str();
+Eigen::Vector3d get_atom_mapping_translation(AtomMapping const &atom_mapping) {
+  return atom_mapping.translation;
 }
 
-xtal::BasicStructure make_basicstructure(
-    Eigen::Ref<Eigen::Matrix3d const> const &L,
-    Eigen::Ref<Eigen::MatrixXd const> const &B_frac,
-    std::vector<std::vector<std::string>> const &occ_dof,
-    std::vector<std::map<std::string, DoFSetInput>> const &local_dof,
-    std::map<std::string, DoFSetInput> const &global_dof,
-    std::map<std::string, xtal::Molecule> const &molecules) {
-  // construct prim
-  xtal::BasicStructure prim{L};
-
-  // set basis sites
-  for (Index b = 0; b < B_frac.cols(); ++b) {
-    xtal::Coordinate coord{B_frac.col(b), prim.lattice(), FRAC};
-    std::vector<xtal::Molecule> site_occ;
-    for (std::string label : occ_dof[b]) {
-      site_occ.push_back(molecules.at(label));
-    }
-    std::vector<xtal::SiteDoFSet> site_dofsets;
-    for (auto const &pair : local_dof[b]) {
-      std::string const &dofname = pair.first;
-      DoFSetInput const &dofsetinfo = pair.second;
-      site_dofsets.emplace_back(AnisoValTraits(dofname), dofsetinfo.first,
-                                dofsetinfo.second,
-                                std::unordered_set<std::string>{});
-    }
-    xtal::Site site{coord, site_occ, site_dofsets};
-    prim.push_back(site, FRAC);
-  }
-  prim.set_unique_names(occ_dof);
-
-  // set global dof
-  std::vector<xtal::DoFSet> global_dofsets;
-  for (auto const &pair : global_dof) {
-    std::string const &dofname = pair.first;
-    DoFSetInput const &dofsetinfo = pair.second;
-    global_dofsets.emplace_back(AnisoValTraits(dofname), dofsetinfo.first,
-                                dofsetinfo.second);
-  }
-  prim.set_global_dofs(global_dofsets);
-
-  return prim;
+bool get_atom_mapping_time_reversal(AtomMapping const &atom_mapping) {
+  return atom_mapping.time_reversal;
 }
 
-// void get_basicstructure(
-//     xtal::BasicStructure const &prim,
-//     Eigen::Ref<Eigen::Matrix3d> &L,
-//     Eigen::Ref<Eigen::MatrixXd> &B_frac,
-//     std::vector<std::vector<std::string>> &occ_dof,
-//     std::vector<std::map<std::string, DoFSetInput>> &local_dof,
-//     std::map<std::string, DoFSetInput> &global_dof,
-//     std::map<std::string, xtal::Molecule> &molecules) {
-//
-//   L = prim.lattice().lat_column_mat();
-//
-//   B_frac.resize(3, prim.basis().size());
-//   Index b = 0;
-//   for (auto const &site : prim.basis()) {
-//     B_frac.col(b) = site.const_frac();
-//     ++b;
-//   }
-//
-//   occ_dof = xtal::allowed_molecule_names(prim);
-//
-//   local_dof.clear();
-//   Index b = 0;
-//   for (auto const &site : prim.basis()) {
-//     std::map<std::string, DoFSetInput> site_dof;
-//     for (auto const &pair : site.dofs()) {
-//       std::string const &dofname = pair.first;
-//       xtal::SiteDoFSet const &dofset = pair.second;
-//       site_dof.emplace(
-//           pair.first,
-//           DoFSetInput(
-//               dofset.component_names(),
-//               dofset.basis()));
-//     }
-//     local_dof.push_back(site_dof);
-//     ++b;
-//   }
-//
-//   global_dof.clear();
-//   for (auto const &pair : prim.global_dofs()) {
-//     std::string const &dofname = pair.first;
-//     xtal::DoFSet const &dofset = pair.second;
-//     site_dof.emplace(
-//         pair.first,
-//         DoFSetInput(
-//             dofset.component_names(),
-//             dofset.basis()));
-//   }
-//
-//   molecules.clear();
-//   std::vector<std::vector<std::string>> mol_names = prim.unique_names();
-//   if (mol_names.empty()) {
-//     mol_names = xtal::allowed_molecule_unique_names(prim);
-//   }
-//   for (Index b = 0; b < mol_names.size(); ++b) {
-//     for (Index i = 0; i < mol_names[b].size(); ++i) {
-//       std::string const &name =  mol_names[b][i];
-//       if (!molecules.count(name)) {
-//         molecules.emplace(name, prim.basis()[b].occupant_dof()[i]);
-//       }
-//     }
-//   }
-//
-// }
+/// \brief Structure mapping transformation
+///
+/// Combines lattice mapping and atom mapping to form a complete structure
+/// mapping transformation
+struct StructureMapping {
+  LatticeMapping lattice_mapping;
+  AtomMapping atom_mapping;
+};
+
+LatticeMapping get_lattice_mapping(StructureMapping const &structure_mapping) {
+  return structure_mapping.lattice_mapping;
+}
+
+AtomMapping get_atom_mapping(StructureMapping const &structure_mapping) {
+  return structure_mapping.atom_mapping;
+}
+
+struct StructureMappingScore {
+  double lattice_cost;
+  double atom_cost;
+  double total_cost;
+};
 
 }  // namespace CASMpy
 
-PYBIND11_MODULE(_xtal, m) {
+PYBIND11_MODULE(mapping, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
-        CASMcode_crystallography bindings module
-        ----------------------------------------
-        .. currentmodule:: _xtal
-        .. autosummary::
-           :toctree: _generate
-           MutablePrim
+        casm.mapping
+        ---------
+
+        The casm.mapping module is a Python interface to the mapping
+        classes and methods in the CASM::mapping namespace of the CASM C++ libraries.
+        This includes:
+
+        - Methods for finding the mapping transformations that relate one structure to another
+
     )pbdoc";
 
-  py::class_<xtal::Lattice>(m, "Lattice")
-      .def(py::init<Eigen::Matrix3d const &, double, bool>(),
-           py::arg("lat_column_mat"), py::arg("xtal_tol") = TOL,
-           py::arg("force") = false)
-      .def("lat_column_mat", &xtal::Lattice::lat_column_mat,
-           py::return_value_policy::reference_internal);
+  m.attr("TOL") = TOL;
 
-  m.def("make_lattice", &make_lattice, "Construct a Lattice");
+  py::class_<LatticeMapping>(m, "LatticeMapping", R"pbdoc(
+      A lattice mapping transformation
+      )pbdoc")
+      .def(py::init<Eigen::Matrix3d const &, Eigen::Matrix3d const &>(),
+           "Construct a LatticeMapping transformation", py::arg("isometry"),
+           py::arg("left_stretch"), py::arg("transformation_matrix_to_super"),
+           py::arg("reorientation"), R"pbdoc(
+      Construct a lattice mapping transformation
 
-  py::class_<xtal::AtomPosition>(m, "AtomComponent")
-      .def(py::init(&make_atom_position))
-      .def("name", &xtal::AtomPosition::name)
-      .def("coordinate", &xtal::AtomPosition::cart)
-      .def("properties", &get_atom_position_properties);
+      The lattice mapping transformation has the form:
 
-  m.def("make_atom_component", &make_atom_position,
-        "Construct an AtomComponent object");
+      .. math::
 
-  py::class_<xtal::Molecule>(m, "Molecule")
-      .def(py::init(&make_molecule))
-      .def("name", &xtal::Molecule::name)
-      .def("is_vacancy", &xtal::Molecule::is_vacancy)
-      .def("is_atomic", &xtal::Molecule::is_atomic)
-      .def("is_divisible", &xtal::Molecule::is_divisible)
-      .def("atoms", &xtal::Molecule::atoms)
-      .def("atom", &xtal::Molecule::atom)
-      .def("size", &xtal::Molecule::size)
-      .def("properties", &get_molecule_properties);
+          L_1 T N = V Q L_2,
 
-  m.def("make_molecule", &make_molecule, "Construct a Molecule object");
-  m.def("make_vacancy", &xtal::Molecule::make_vacancy,
-        "Construct a vacancy (Molecule object)");
-  m.def("make_atom", &xtal::Molecule::make_atom,
-        "Construct a atom (Molecule object)");
+      where :math:`L_1` are the reference "parent" lattice vectors, and
+      :math:`L_2` are the "child" lattice vectors being mapped to the
+      parent vectors, as columns of shape=(3,3) matrices. The other
+      shape=(3,3) matrices are:
 
-  py::class_<DoFSetInput>(m, "DoFSetInput")
-      .def(py::init(&make_dofsetinput))
-      .def_readonly("axis_names", &DoFSetInput::first)
-      .def_readonly("basis", &DoFSetInput::second);
+      - :math:`V`, a symmetric stretch tensor, representing
+        the symmetric strain
+      - :math:`Q` matrix, a rigid transformation of :math:`L_2`
+      - :math:`T`, an integer transformation matrix that generates a
+        superlattice of :math:`L_1`
+      - :math:`N`, a unimodular reorientation matrix that generates a
+        lattice equivalent to :math:`L_1 T` with reoriented lattice
+        vectors
 
-  m.def("make_dofsetinput", &make_dofsetinput,
-        "Construct a DoFSetInput object");
 
-  py::class_<xtal::BasicStructure>(m, "Prim")
-      .def(py::init(&make_basicstructure))
-      .def("lattice", &xtal::BasicStructure::lattice);
+      Parameters
+      ----------
 
-  m.def("make_basicstructure", &make_basicstructure, "Construct a MutablePrim");
-  m.def("basicstructure_from_json", &basicstructure_from_json,
-        "Construct a MutablePrim from a JSON-formatted string");
-  m.def("basicstructure_to_json", &basicstructure_to_json,
-        "Construct a JSON-formatted string from a MutablePrim");
+      left_stretch : array_like, shape=(3,3)
+          The :math:`V` matrix, a symmetric stretch tensor, representing
+          the symmetric strain
+      isometry : array_like, shape=(3,3), optional
+          The :math:`Q` matrix, representing a rigid transformation of
+          :math:`L_2`. The default value is np.eye(3).
+      transformation_matrix_to_super : array_like, shape=(3,3), dtype=int, optional
+          The transformation matrix, :math:`T`, that generates a
+          superlattice of the parent lattice, :math:`L_1`. The default
+          value is np.eye(3).astype(int).
+      reorientation : array_like, shape=(3,3), dtype=int, optional
+          The unimodular matrix, :math:`N`, that generates a lattice
+          equivalent to the parent superlattice, :math:`L_1 T`. The
+          default value is np.eye(3).astype(int).
+      )pbdoc")
+      .def("isometry", &get_latticemapping_Q,
+           "Return the shape=(3,3) isometry matrix, :math:`Q`.")
+      .def("left_stretch", &get_latticemapping_V,
+           "Return the shape=(3,3) left symmetric stretch tensor, :math:`V`.")
+      .def("transformation_matrix_to_super", &get_latticemapping_T,
+           "Return the shape=(3,3) parent supercell transformation matrix, "
+           ":math:`T`.")
+      .def("reorienation", &get_latticemapping_N,
+           "Return the shape=(3,3) unimodular matrix, :math:`N`.")
+      .def("deformation_gradient", &get_latticemapping_F,
+           "Return the shape=(3,3) deformation gradient tensor, :math:`F = V "
+           "Q`.");
+
+  py::class_<AtomMapping>(m, "AtomMapping", R"pbdoc(
+     An atom mapping transformation
+     )pbdoc")
+      .def(py::init<Eigen::Matrix3d const &, Eigen::Matrix3d const &>(),
+           "Construct an AtomMapping transformation", py::arg("displacement"),
+           py::arg("permutation"), py::arg("translation"),
+           py::arg("time_reversal"), R"pbdoc(
+     Construct an atom mapping transformation
+
+     The atom mapping transformation has the form:
+
+     .. math::
+
+         \vec{r_1}(i) + \vec{d}(i) = V * Q * \vec{r_2}(p_i) + \vec{t}
+
+
+      where:
+         / - \f$\vec{r_1}(i)\f$: Vector of coordinates of atoms in the parent
+         /   superstructure. The value \f$\vec{r_1}(i)\f$ represents the Cartesian
+         /   coordinate of the \f$i\f$-th atom in the parent superstructure. The parent
+         /   superstructure is not returned directly as part of the mapping results,
+         /   but it can be constructed using:
+         /
+         /       xtal::SimpleStructure parent_superstructure = make_superstructure(
+         /           T * N, parent_structure);
+         /
+         /   where \f$T\f$, and\f$N\f$ come from the lattice mapping solution. Then
+         /   the \f$i\f$-th atom coordinate, \f$\vec{r_1}(i)\f$, is equal to:
+         /
+         /       parent_superstructure.atom_info.coords.col(i)
+         /
+         / - \f$\vec{r_2}(i)\f$: Vector of coordinates of atoms in the unmapped child
+         /   structure. The value \f$\vec{r_2}(i)\f$ represents the Cartesian
+         /   coordinate of the \f$i\f$-th atom in the unmapped child structure.
+         / - \f$V * Q\f$: Lattice transformation, from the unmapped child superlattice
+         /   to the parent superlattice, as determined by a solution to the lattice
+         /   mapping problem.
+         / - \f$p_i\f$: A permutation vector, describes which atom in the unmapped
+         /   child structure (\f$p_i\f$) is mapped to the i-th site of the mapped
+         /   structure. Values of \f$p_i\f$ greater than the number of atoms in the
+         /   unmapped structure indicate inferred vacancies.
+         / - \f$\vec{t}\f$: A translation vector, in Cartesian coordinates, of the de-
+         /   rotated and undeformed (mapped) child superstructure that minimizes the
+         /   atomic displacement cost.
+         / - \f$\vec{d}(i)\f$: The displacement associated with the atom at the i-th
+         /   site in parent superstructure.
+         /
+         / Additionally, structures with magnetic spin may have time reversal symmetry
+         / which may relate the child structure to the lattice structure.
+
+
+
+     Parameters
+     ----------
+
+     left_stretch : array_like, shape=(3,3)
+         The :math:`V` matrix, a symmetric stretch tensor, representing
+         the symmetric strain
+     isometry : array_like, shape=(3,3), optional
+         The :math:`Q` matrix, representing a rigid transformation of
+         :math:`L_2`. The default value is np.eye(3).
+     transformation_matrix_to_super : array_like, shape=(3,3), dtype=int, optional
+         The transformation matrix, :math:`T`, that generates a
+         superlattice of the parent lattice, :math:`L_1`. The default
+         value is np.eye(3).astype(int).
+     reorientation : array_like, shape=(3,3), dtype=int, optional
+         The unimodular matrix, :math:`N`, that generates a lattice
+         equivalent to the parent superlattice, :math:`L_1 T`. The
+         default value is np.eye(3).astype(int).
+     )pbdoc")
+      .def("isometry", &get_latticemapping_Q,
+           "Return the shape=(3,3) isometry matrix, :math:`Q`.")
+      .def("left_stretch", &get_latticemapping_V,
+           "Return the shape=(3,3) left symmetric stretch tensor, :math:`V`.")
+      .def("transformation_matrix_to_super", &get_latticemapping_T,
+           "Return the shape=(3,3) parent supercell transformation matrix, "
+           ":math:`T`.")
+      .def("reorienation", &get_latticemapping_N,
+           "Return the shape=(3,3) unimodular matrix, :math:`N`.")
+      .def("deformation_gradient", &get_latticemapping_F,
+           "Return the shape=(3,3) deformation gradient tensor, :math:`F = V "
+           "Q`.");
 
 #ifdef VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

@@ -2,7 +2,7 @@ import glob
 import os
 import sys
 
-__version__ = "2.0dev1"
+__version__ = "2.0.dev1"
 
 from pybind11 import get_cmake_dir
 # Available at setup time due to pyproject.toml
@@ -22,13 +22,7 @@ with open(os.path.join('README.md'), encoding='utf-8') as f:
 #   reproducible builds (https://github.com/pybind/python_example/pull/53)
 
 ext_modules = [
-    Pybind11Extension("casm_mapping._math",
-        ["src/math.cpp"],
-        # Example: passing in the version to the compiled code
-        define_macros = [('VERSION_INFO', __version__)],
-        cxx_std=17,
-        ),
-    Pybind11Extension("casm_mapping._xtal",
+    Pybind11Extension("casm.xtal",
         ["src/xtal.cpp"],
         # Example: passing in the version to the compiled code
         define_macros = [('VERSION_INFO', __version__)],
@@ -48,7 +42,7 @@ ext_modules = [
 
 
 setup(
-    name='casm_mapping',
+    name='casm-xtal',
     version=__version__,
     url='https://github.com/prisms-center/CASMcode_mapping',
     description='CASM structure mapping Python interface',
@@ -57,9 +51,9 @@ setup(
     author='CASM developers',
     author_email='casm-developers@lists.engr.ucsb.edu',
     license='LGPL2.1+',
-    packages=find_packages(),
+    #packages=['casm.xtal'],
     install_requires=[
-        "numpy"
+        "pybind11", "numpy"
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',

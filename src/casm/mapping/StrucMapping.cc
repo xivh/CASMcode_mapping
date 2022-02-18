@@ -1182,7 +1182,7 @@ bool MappingNode::operator<(MappingNode const &B) const {
 /// where:
 /// - \f$\vec{r_1}(i)\f$: Vector of coordinates of atoms in the parent
 ///   superstructure. The value \f$\vec{r_1}(i)\f$ represents the Cartesian
-///   coordinate of the \f$i\f$-th atom in the parent structure. The parent
+///   coordinate of the \f$i\f$-th atom in the parent superstructure. The parent
 ///   superstructure is not returned directly as part of the mapping results,
 ///   but it can be constructed using:
 ///
