@@ -502,18 +502,14 @@ std::vector<std::pair<StructureMappingScore, StructureMapping>> map_structures(
   bool _soft_va_limit = false;      // no effect
   double _min_va_frac = 0.;         // no effect
   double _max_va_frac = 1.;         // no effect
-  std::cout << "lattice_cost_weight: " << lattice_cost_weight << std::endl;
-  std::cout << "cost_tol: " << cost_tol << std::endl;
   StrucMapper strucmap(calculator, lattice_cost_weight, _max_volume_change,
                        _robust, _soft_va_limit, cost_tol, _min_va_frac,
                        _max_va_frac);
 
   if (symmetrize_strain_cost) {
-    std::cout << "symmetrize lattice cost" << std::endl;
     strucmap.set_symmetrize_lattice_cost(true);
   }
   if (symmetrize_atom_cost) {
-    std::cout << "symmetrize atom cost" << std::endl;
     auto prim_permute_group =
         xtal::make_permutation_representation(prim, prim_factor_group);
     strucmap.set_symmetrize_atomic_cost(true, prim_factor_group,
@@ -521,24 +517,17 @@ std::vector<std::pair<StructureMappingScore, StructureMapping>> map_structures(
   }
 
   bool keep_invalid = false;
-  std::cout << "min_vol: " << min_vol << std::endl;
-  std::cout << "max_vol: " << max_vol << std::endl;
-  std::cout << "k_best: " << k_best << std::endl;
-  std::cout << "min_cost: " << min_cost << std::endl;
-  std::cout << "max_cost: " << max_cost << std::endl;
   std::set<MappingNode> mappings =
       strucmap.map_deformed_struc_impose_lattice_vols(
           structure2, min_vol, max_vol, k_best, max_cost, min_cost,
           keep_invalid, structure2_factor_group);
 
-  std::cout << "mappings.size(): " << mappings.size() << std::endl;
   std::vector<std::pair<StructureMappingScore, StructureMapping>> results;
   for (auto const &mapping : mappings) {
     if (!(mapping.cost > (min_cost - cost_tol) &&
           mapping.cost < (max_cost + cost_tol))) {
       continue;
     }
-    // std::cout << "%%%%%%%%%%%%" << std::endl;
     // Get LatticeMapping data
     //
     // LatticeMapping convention is F * L1 * T * N = L2
@@ -548,17 +537,9 @@ std::vector<std::pair<StructureMappingScore, StructureMapping>> map_structures(
     auto const &lattice_node = mapping.lattice_node;
     Eigen::Matrix3d F =
         (lattice_node.stretch * lattice_node.isometry).inverse();
-    // std::cout << "lattice_node.cost: " << lattice_node.cost << std::endl;
-    // std::cout << "F:\n" << F << std::endl;
-    // std::cout << "L:\n" <<
-    // lattice_node.parent.prim_lattice().lat_column_mat() << std::endl;
-    // std::cout << "S:\n" <<
-    // lattice_node.parent.superlattice().lat_column_mat() << std::endl;
     Eigen::Matrix3d T =
         lattice_node.parent.transformation_matrix_to_super().cast<double>();
-    // std::cout << "T:\n" << T << std::endl;
     Eigen::Matrix3d N = Eigen::Matrix3d::Identity();
-    // std::cout << "vol:" << T.determinant() << std::endl;
     LatticeMapping lattice_mapping(F, T, N);
 
     // Get AtomMapping data
@@ -572,8 +553,6 @@ std::vector<std::pair<StructureMappingScore, StructureMapping>> map_structures(
     results.emplace_back(StructureMappingScore(lattice_node.cost,
                                                atomic_node.cost, mapping.cost),
                          StructureMapping(lattice_mapping, atom_mapping));
-
-    // std::cout << std::endl;
   }
 
   return results;
