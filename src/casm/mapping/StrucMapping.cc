@@ -91,7 +91,7 @@ template <typename OutputIterator>
 static bool initial_atomic_maps(xtal::SimpleStructure child_struc,
                                 MappingNode const &seed,
                                 StrucMapCalculatorInterface const &calculator,
-                                double max_cost,
+                                double max_cost, double cost_tol,
                                 bool const &symmetrize_atomic_cost,
                                 OutputIterator it) {
   // derotate first
@@ -127,7 +127,7 @@ static bool initial_atomic_maps(xtal::SimpleStructure child_struc,
     // Now we are filling up displacements
     calculator.finalize(node, child_struc, symmetrize_atomic_cost);
 
-    if (node.cost < max_cost) {
+    if (node.cost < max_cost + cost_tol) {
       *it = node;
     }
   }
@@ -244,8 +244,6 @@ namespace {
 void check_equal(Eigen::MatrixXd const &A, Eigen::MatrixXd const &B,
                  std::string message) {
   if (!almost_equal(A, B)) {
-    std::cout << "A: \n" << A << std::endl;
-    std::cout << "B: \n" << B << std::endl << std::endl;
     throw std::runtime_error(message);
   }
 }
@@ -1861,7 +1859,8 @@ Index StrucMapper::k_best_maps_better_than(
           //          appear later in the queue)
           if (!Local::initial_atomic_maps(
                   unmapped_child, *current, calculator(), max_cost,
-                  symmetrize_atomic_cost(), std::inserter(queue, current))) {
+                  this->cost_tol(), symmetrize_atomic_cost(),
+                  std::inserter(queue, current))) {
             // If no basis maps are viable, it indicates volume mismatch; add to
             // vol_mismatch
             vol_mismatch.insert(current->vol_pair());
