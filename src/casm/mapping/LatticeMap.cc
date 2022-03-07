@@ -333,13 +333,13 @@ double StrainCostCalculator::strain_cost(
 ///       \mathrm{symmetry\ breaking\ strain\ cost} =
 ///           \frac{1}{2}*\left(
 ///               \frac{1}{3}*\mathrm{tr}\left( B_{sym-break}^2 \right) +
-///               \frac{1}{2}*\mathrm{tr}\left( B_{sym-break-reverse}^2 \right)
+///               \frac{1}{3}*\mathrm{tr}\left( B_{sym-break-reverse}^2 \right)
 ///           \right) \\
 ///       B_{sym-break} = B - B_{sym} \\
 ///       B_{sym} = \frac{1}{N_{G_1}} * \sum_i ( G_1(i) * B * G_1^{\top}(i) )
 ///  \f]
 ///   where \f$B_{sym-break}\f$, is the symmetry-breaking Biot strain,
-///   \f$G_1(i)\f$ are point group operations of the parent structure, and
+///   \f$G_1(i)\f$ are parent point group operations, and
 ///   \f$N_{G_1}\f$ is the total number of operations. Similar relations hold
 ///   for calculating \f$B_{sym-break-reverse}\f$ from \f$B_{reverse}\f$.
 ///
