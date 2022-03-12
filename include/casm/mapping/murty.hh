@@ -2,6 +2,7 @@
 #define CASM_mapping_murty
 
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "casm/global/definitions.hh"
@@ -34,7 +35,8 @@ typedef std::function<std::pair<double, Assignment>(Eigen::MatrixXd const &,
 ///     using the Murty algorithm
 std::vector<std::pair<double, Assignment>> solve(
     AssignmentMethod assign_f, Eigen::MatrixXd const &cost_matrix, int k_best,
-    double min_cost = 0.0, double max_cost = 1e20, double infinity = 1e20,
+    std::optional<double> min_cost = std::nullopt,
+    std::optional<double> max_cost = std::nullopt, double infinity = 1e20,
     double tol = 1e-5);
 
 }  // namespace murty

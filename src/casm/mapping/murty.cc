@@ -274,13 +274,15 @@ void partition(std::multiset<Node> &node_set, AssignmentMethod assign_f,
 /// \param assign_f Method used for calculating the best assignment
 /// \param cost_matrix The cost of assigning "worker" i to "task" j
 ///     is cost_matrix(i,j). The number of rows and columns must
-///     be greater than 1. The number of rows must be greater than
-///     or equal to the number of columns. All elements must be
-///     greater than or equal to zero.
+///     be greater than 1. The number of rows must be equal to the
+///     number of columns.
 /// \param k_best Number of solutions to return. Must be greater
 ///     than or equal to 1.
 /// \param min_cost Minimum cost solutions to include in the results.
+///     If nullopt, the min_cost value is set to the minimum
+///     coefficient value.
 /// \param max_cost Maximum cost solutions to include in the results.
+///     If nullopt, the max_cost value is set to the infinity value.
 /// \param infinity Cost used for "infinity", when an assignment is
 ///     forced off
 /// \param tol Tolerance used for comparing costs
@@ -294,7 +296,8 @@ void partition(std::multiset<Node> &node_set, AssignmentMethod assign_f,
 ///     cost less than the cost of the k-th solution + tol.
 std::vector<std::pair<double, Assignment>> solve(
     AssignmentMethod assign_f, Eigen::MatrixXd const &cost_matrix, int k_best,
-    double min_cost, double max_cost, double infinity, double tol) {
+    std::optional<double> min_cost, std::optional<double> max_cost,
+    double infinity, double tol) {
   using namespace murty_impl;
 
   // --- Input validation ---
@@ -307,17 +310,17 @@ std::vector<std::pair<double, Assignment>> solve(
   if (cost_matrix.cols() < 1) {
     throw std::runtime_error("Error in murty::solve: cost_matrix.cols() < 1");
   }
-  if (cost_matrix.rows() > cost_matrix.cols()) {
+  if (cost_matrix.rows() != cost_matrix.cols()) {
     throw std::runtime_error(
-        "Error in murty::solve: cost_matrix.rows() > cost_matrix.cols()");
+        "Error in murty::solve: cost_matrix.rows() != cost_matrix.cols()");
   }
-  for (Index r = 0; r < cost_matrix.rows(); ++r) {
-    for (Index c = 0; c < cost_matrix.cols(); ++c) {
-      if (cost_matrix(r, c) < 0.0) {
-        throw std::runtime_error(
-            "Error in murty::solve: cost_matrix has negative elements");
-      }
-    }
+
+  // --- Defaults ---
+  if (!min_cost.has_value()) {
+    min_cost = cost_matrix.minCoeff();
+  }
+  if (!max_cost.has_value()) {
+    max_cost = infinity;
   }
 
   std::vector<std::pair<double, Assignment>> results;
@@ -332,11 +335,11 @@ std::vector<std::pair<double, Assignment>> solve(
   // If cost is infinite or cost is greater than max_cost; then return empty
   // results
   if ((infinity - tol < optimal_node.cost) ||
-      (max_cost + tol <= optimal_node.cost)) {
+      (*max_cost + tol <= optimal_node.cost)) {
     return results;
   }
   // If cost is greater than or equal to min_cost; then add it to results
-  if (min_cost - tol < optimal_node.cost) {
+  if (*min_cost - tol < optimal_node.cost) {
     results.emplace_back(optimal_node.cost, make_assignment(optimal_node));
   }
 
@@ -359,11 +362,11 @@ std::vector<std::pair<double, Assignment>> solve(
 
     // If cost is less than min_cost, continue
     double cost = node_it->cost;
-    if (cost <= min_cost - tol) {
+    if (cost <= *min_cost - tol) {
       continue;
     }
     // If cost is infinite or cost is greater than max_cost; then return results
-    if ((infinity - tol < cost) || (max_cost + tol <= cost)) {
+    if ((infinity - tol < cost) || (*max_cost + tol <= cost)) {
       break;
     }
     // If k_best not satisfied or tied with k_best result; then add to results

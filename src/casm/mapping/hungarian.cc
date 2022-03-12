@@ -422,8 +422,8 @@ Assignment hungarian_method(Eigen::MatrixXd cost_matrix, double infinity,
 ///
 /// \param cost_matrix The cost of assigning "worker" i to "task" j
 ///     is cost_matrix(i,j). The number of rows and columns must
-///     be greater than 1. The number of rows must be greater than
-///     or equal to the number of columns.
+///     be greater than 1. The number of rows must be equal to the
+///     number of columns.
 /// \param infinity Cost used for "infinity", when an assignment is
 ///     forced off
 /// \param tol Tolerance used for comparing costs
@@ -437,6 +437,20 @@ Assignment hungarian_method(Eigen::MatrixXd cost_matrix, double infinity,
 ///
 std::pair<double, Assignment> solve(Eigen::MatrixXd const &cost_matrix,
                                     double infinity, double tol) {
+  // --- Input validation ---
+  if (cost_matrix.rows() < 1) {
+    throw std::runtime_error(
+        "Error in hungarian::solve: cost_matrix.rows() < 1");
+  }
+  if (cost_matrix.cols() < 1) {
+    throw std::runtime_error(
+        "Error in hungarian::solve: cost_matrix.cols() < 1");
+  }
+  if (cost_matrix.rows() != cost_matrix.cols()) {
+    throw std::runtime_error(
+        "Error in hungarian::solve: cost_matrix.rows() != cost_matrix.cols()");
+  }
+
   Assignment assignment =
       hungarian_impl::hungarian_method(cost_matrix, infinity, tol);
 

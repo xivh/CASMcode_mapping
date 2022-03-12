@@ -44,10 +44,7 @@ TEST(MurtyTest, Test1) {
       4., 0., 2.;   //
 
   int k_best = 10;
-  double min_cost = 0.0;
-  double max_cost = 1e20;
-  auto assignments =
-      murty::solve(hungarian::solve, C, k_best, min_cost, max_cost);
+  auto assignments = murty::solve(hungarian::solve, C, k_best);
 
   EXPECT_EQ(assignments.size(), 6);
   // clang-format off
@@ -92,10 +89,7 @@ TEST(MurtyTest, Test3) {
       4., 0., 2.;   //
 
   int k_best = 3;
-  double min_cost = 0.0;
-  double max_cost = 1e20;
-  auto assignments =
-      murty::solve(hungarian::solve, C, k_best, min_cost, max_cost);
+  auto assignments = murty::solve(hungarian::solve, C, k_best);
 
   EXPECT_EQ(assignments.size(), 5);
   // clang-format off
@@ -104,5 +98,26 @@ TEST(MurtyTest, Test3) {
   EXPECT_TRUE(almost_equal(assignments[2], {5, {1, 2, 0, }}));
   EXPECT_TRUE(almost_equal(assignments[3], {5, {2, 0, 1, }}));
   EXPECT_TRUE(almost_equal(assignments[4], {5, {1, 0, 2, }}));
+  // clang-format on
+}
+
+TEST(MurtyTest, Test4) {
+  // test cost matrix with negative values
+
+  Eigen::MatrixXd C(3, 3);
+  C << 0., 1., 3.,    //
+      2., 1., 0.,     //
+      -1., -5., -3.;  //
+
+  int k_best = 3;
+  auto assignments = murty::solve(hungarian::solve, C, k_best);
+
+  EXPECT_EQ(assignments.size(), 5);
+  // clang-format off
+  EXPECT_TRUE(almost_equal(assignments[0], {-5., {0, 2, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[1], {-2., {0, 1, 2, }}));
+  EXPECT_TRUE(almost_equal(assignments[2], {0., {1, 2, 0, }}));
+  EXPECT_TRUE(almost_equal(assignments[3], {0., {2, 0, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[4], {0., {1, 0, 2, }}));
   // clang-format on
 }
