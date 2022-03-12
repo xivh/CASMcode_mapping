@@ -1,4 +1,4 @@
-#include "casm/mapping/StrucMapping.hh"
+#include "casm/mapping/impl/StrucMapping.hh"
 
 #include <algorithm>
 #include <sstream>
@@ -7,21 +7,20 @@
 
 #include "autotools.hh"
 #include "casm/casm_io/container/stream_io.hh"
-//#include "casm/clex/SimpleStructureTools.hh"
 #include "casm/crystallography/Adapter.hh"
 #include "casm/crystallography/BasicStructure.hh"
 #include "casm/crystallography/BasicStructureTools.hh"
 #include "casm/crystallography/SimpleStructure.hh"
 #include "casm/crystallography/SimpleStructureTools.hh"
 #include "casm/crystallography/io/VaspIO.hh"
-#include "casm/mapping/SimpleStrucMapCalculator.hh"
+#include "casm/mapping/impl/SimpleStrucMapCalculator.hh"
 #include "casm/misc/CASM_Eigen_math.hh"
 #include "gtest/gtest.h"
 #include "teststructures.hh"
 
 using namespace CASM;
 
-void print_mapping_nodes(std::set<mapping_v1::MappingNode> const &set) {
+void print_mapping_nodes(std::set<mapping_impl::MappingNode> const &set) {
   int i = 0;
   for (auto const &el : set) {
     std::cout << "ELEMENT " << ++i << ":\n";
@@ -71,11 +70,11 @@ void k_best_mapping_test(xtal::SimpleStructure const &sstruc, double d) {
     std::string comment(
         "Check for perfect mappings using the best-0 calling convention, "
         "without symmetry and with a positive min_cost");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
-        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0, mapping_v1::big_inf(),
-        1e-3);
+        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0,
+        mapping_impl::big_inf(), 1e-3);
 
     EXPECT_EQ(sym_set.size(), 12) << comment;
     fgroup = adapter::Adapter<xtal::SymOpVector, decltype(sym_set)>()(sym_set);
@@ -89,11 +88,12 @@ void k_best_mapping_test(xtal::SimpleStructure const &sstruc, double d) {
         "cost of 0.5*d^2. Without considering symmetry of child structure "
         "there are 8.");
     bool robust = true;
-    mapping_v1::StrucMapper mapper(
-        mapping_v1::SimpleStrucMapCalculator(sstruc, fgroup), 0.5, 0.5, robust);
+    mapping_impl::StrucMapper mapper(
+        mapping_impl::SimpleStrucMapCalculator(sstruc, fgroup), 0.5, 0.5,
+        robust);
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
-        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0, mapping_v1::big_inf(),
-        0.5 * d * d + 1e-6);
+        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0,
+        mapping_impl::big_inf(), 0.5 * d * d + 1e-6);
 
     EXPECT_EQ(sym_set.size(), 8) << comment;
 
@@ -111,11 +111,12 @@ void k_best_mapping_test(xtal::SimpleStructure const &sstruc, double d) {
         "cost of 0.5 * d^2. Considering symmetry of child structure, there are "
         "4.");
     bool robust = true;
-    mapping_v1::StrucMapper mapper(
-        mapping_v1::SimpleStrucMapCalculator(sstruc, fgroup), 0.5, 0.5, robust);
+    mapping_impl::StrucMapper mapper(
+        mapping_impl::SimpleStrucMapCalculator(sstruc, fgroup), 0.5, 0.5,
+        robust);
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
-        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0, mapping_v1::big_inf(),
-        0.5 * d * d + 1e-6, false, fgroup);
+        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0,
+        mapping_impl::big_inf(), 0.5 * d * d + 1e-6, false, fgroup);
 
     EXPECT_EQ(sym_set.size(), 4) << comment;
 
@@ -160,16 +161,16 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check that we find 8 perfect mapping for a Vol8 non-primitive "
         "structure");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc2)));
-    mapping_v1::LatticeNode tnode((xtal::Lattice(sstruc2.lat_column_mat)),
-                                  (xtal::Lattice(sstruc2.lat_column_mat)),
-                                  (xtal::Lattice(sstruc2.lat_column_mat)),
-                                  (xtal::Lattice(sstruc2.lat_column_mat)),
-                                  sstruc2.atom_info.size());
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc2)));
+    mapping_impl::LatticeNode tnode((xtal::Lattice(sstruc2.lat_column_mat)),
+                                    (xtal::Lattice(sstruc2.lat_column_mat)),
+                                    (xtal::Lattice(sstruc2.lat_column_mat)),
+                                    (xtal::Lattice(sstruc2.lat_column_mat)),
+                                    sstruc2.atom_info.size());
 
     auto trans_set = mapper.map_deformed_struc_impose_lattice_node(
-        sstruc2, tnode, 0, mapping_v1::big_inf(), 1e-3);
+        sstruc2, tnode, 0, mapping_impl::big_inf(), 1e-3);
     EXPECT_EQ(trans_set.size(), 8) << comment;
   }
 
@@ -177,11 +178,11 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check for perfect mappings using the best-1 calling convention, "
         "without symmetry");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
-        sstruc, xtal::Lattice(sstruc.lat_column_mat), 1, mapping_v1::big_inf(),
-        -1e-3);
+        sstruc, xtal::Lattice(sstruc.lat_column_mat), 1,
+        mapping_impl::big_inf(), -1e-3);
     EXPECT_EQ(sym_set.size(), N) << comment;
   }
 
@@ -189,8 +190,8 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check for perfect mappings using the best-1000 calling convention, "
         "without symmetry");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
         sstruc, xtal::Lattice(sstruc.lat_column_mat), 1000, 1e-3, -1e-3);
     EXPECT_EQ(sym_set.size(), N) << comment;
@@ -202,11 +203,11 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check for perfect mappings using the best-0 calling convention, "
         "without symmetry and with a positive min_cost");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
-        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0, mapping_v1::big_inf(),
-        1e-3);
+        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0,
+        mapping_impl::big_inf(), 1e-3);
 
     EXPECT_EQ(sym_set.size(), N) << comment;
     fgroup = adapter::Adapter<xtal::SymOpVector, decltype(sym_set)>()(sym_set);
@@ -216,11 +217,11 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check for perfect mappings of primitive structure onto itself, using "
         "symmetry reduction of factor group from previous step.");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc, fgroup)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc, fgroup)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
-        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0, mapping_v1::big_inf(),
-        1e-3);
+        sstruc, xtal::Lattice(sstruc.lat_column_mat), 0,
+        mapping_impl::big_inf(), 1e-3);
 
     EXPECT_EQ(sym_set.size(), 1) << comment;
   }
@@ -229,11 +230,11 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check for perfect mappings of non-primitive structure onto primitive, "
         "using symmetry reduction of factor group from previous step.");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc, fgroup)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc, fgroup)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
         sstruc2, xtal::Lattice(sstruc2.lat_column_mat), 0,
-        mapping_v1::big_inf(), 1e-3);
+        mapping_impl::big_inf(), 1e-3);
     EXPECT_EQ(sym_set.size(), 1) << comment;
   }
 
@@ -241,11 +242,11 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
     std::string comment(
         "Check for perfect mappings of vol-8 non-primitive structure onto "
         "itself, using symmetry reduction of factor group from previous step.");
-    mapping_v1::StrucMapper mapper(
-        (mapping_v1::SimpleStrucMapCalculator(sstruc2, fgroup)));
+    mapping_impl::StrucMapper mapper(
+        (mapping_impl::SimpleStrucMapCalculator(sstruc2, fgroup)));
     auto sym_set = mapper.map_deformed_struc_impose_lattice(
         sstruc2, xtal::Lattice(sstruc2.lat_column_mat), 0,
-        mapping_v1::big_inf(), 1e-3);
+        mapping_impl::big_inf(), 1e-3);
     EXPECT_EQ(sym_set.size(), 8) << comment;
   }
 }
@@ -296,10 +297,10 @@ TEST(SelfMappingTest, MultipleAllowedOccupants) {
   auto fcc_X = make_fcc("X");
   auto fcc_Y = make_fcc("Y");
 
-  mapping_v1::SimpleStrucMapCalculator iface(
+  mapping_impl::SimpleStrucMapCalculator iface(
       parent, {CASM::xtal::SymOp::identity()},
       CASM::xtal::SimpleStructure::SpeciesMode::ATOM, {{"Y", "X"}});
-  mapping_v1::StrucMapper mapper(iface);
+  mapping_impl::StrucMapper mapper(iface);
 
   auto X_results = mapper.map_deformed_struc(fcc_X);
   auto Y_results = mapper.map_deformed_struc(fcc_Y);
@@ -353,8 +354,8 @@ TEST(SymInvariantMappingTest, Hcp) {
   bool soft_va_limit = false;
 
   // Initialize a symmetrized  strucmapper
-  mapping_v1::StrucMapper sym_struc_map(
-      mapping_v1::SimpleStrucMapCalculator(
+  mapping_impl::StrucMapper sym_struc_map(
+      mapping_impl::SimpleStrucMapCalculator(
           simple_struc, parent_fg, xtal::SimpleStructure::SpeciesMode::ATOM,
           allowed_molecule_names(basic_struc)),
       lattice_weight, max_vol_change, robust, soft_va_limit, cost_tol,
@@ -463,8 +464,8 @@ TEST(SymInvariantMappingTest, shuffle) {
   bool soft_va_limit = false;
 
   // Initialize a symmetrized  strucmapper
-  mapping_v1::StrucMapper sym_struc_map(
-      mapping_v1::SimpleStrucMapCalculator(
+  mapping_impl::StrucMapper sym_struc_map(
+      mapping_impl::SimpleStrucMapCalculator(
           simple_struc, parent_fg, xtal::SimpleStructure::SpeciesMode::ATOM,
           allowed_molecule_names(basic_struc)),
       lattice_weight, max_vol_change, robust, soft_va_limit, cost_tol,

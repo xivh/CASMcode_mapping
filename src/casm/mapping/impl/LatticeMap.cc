@@ -1,4 +1,4 @@
-#include "casm/mapping/LatticeMap.hh"
+#include "casm/mapping/impl/LatticeMap.hh"
 
 #include <iterator>
 
@@ -10,7 +10,7 @@
 #include "casm/misc/CASM_Eigen_math.hh"
 
 namespace CASM {
-namespace mapping_v1 {
+namespace mapping_impl {
 
 StrainCostCalculator::StrainCostCalculator(
     Eigen::Ref<const Eigen::MatrixXd> const
@@ -801,5 +801,5 @@ double symmetry_breaking_strain_cost(
          6.;
 }
 
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM

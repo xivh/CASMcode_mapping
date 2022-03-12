@@ -1,12 +1,12 @@
-#include "casm/mapping/io/json/StrucMapping_json_io.hh"
+#include "casm/mapping/impl/io/json/StrucMapping_json_io.hh"
 
 #include "casm/casm_io/container/json_io.hh"
 #include "casm/casm_io/json/jsonParser.hh"
-#include "casm/mapping/StrucMapping.hh"
+#include "casm/mapping/impl/StrucMapping.hh"
 
 namespace CASM {
 
-jsonParser &to_json(mapping_v1::MappingNode const &mapping_node,
+jsonParser &to_json(mapping_impl::MappingNode const &mapping_node,
                     jsonParser &json) {
   // json["descriptions"]["lattice_mapping"] = "Defined such that
   // `parent_supercell_lattice_column_matrix == stretch * isometry *
@@ -42,7 +42,7 @@ jsonParser &to_json(mapping_v1::MappingNode const &mapping_node,
   // site, as [name, occupant_index]."
 
   // lattice mapping data:
-  mapping_v1::LatticeNode const &lattice_node = mapping_node.lattice_node;
+  mapping_impl::LatticeNode const &lattice_node = mapping_node.lattice_node;
   json["stretch"] = lattice_node.stretch;
   json["isometry"] = lattice_node.isometry;
   json["parent_supercell_lattice_column_matrix"] =
@@ -57,7 +57,8 @@ jsonParser &to_json(mapping_v1::MappingNode const &mapping_node,
   json["lattice_deformation_cost_method"] = lattice_node.cost_method;
 
   // occupation mapping (assignment) data:
-  mapping_v1::AssignmentNode const &assignment_node = mapping_node.atomic_node;
+  mapping_impl::AssignmentNode const &assignment_node =
+      mapping_node.atomic_node;
   json["translation"] = assignment_node.translation;
   json["time_reversal"] = assignment_node.time_reversal;
   json["forced_assignments"] = assignment_node.forced_on;

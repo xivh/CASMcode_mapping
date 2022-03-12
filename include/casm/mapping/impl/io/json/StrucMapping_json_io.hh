@@ -3,13 +3,13 @@
 
 namespace CASM {
 
-namespace mapping_v1 {
+namespace mapping_impl {
 struct MappingNode;
 }
 
 class jsonParser;
 
-jsonParser &to_json(mapping_v1::MappingNode const &mapping_node,
+jsonParser &to_json(mapping_impl::MappingNode const &mapping_node,
                     jsonParser &json);
 
 }  // namespace CASM

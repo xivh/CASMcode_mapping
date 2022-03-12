@@ -18,7 +18,7 @@ namespace xtal {
 class SimpleStructure;
 }  // namespace xtal
 
-namespace mapping_v1 {
+namespace mapping_impl {
 
 // In this file:
 struct MappingNode;
@@ -253,7 +253,7 @@ class StrucMapCalculatorInterface {
           xtal::SimpleStructure::SpeciesMode::ATOM,
       AllowedSpecies _allowed_species = {}) const = 0;
 };
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM
 
 #endif

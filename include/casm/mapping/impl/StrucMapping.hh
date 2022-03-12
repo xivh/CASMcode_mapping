@@ -10,7 +10,7 @@
 #include "casm/crystallography/SymType.hh"
 #include "casm/external/Eigen/Core"
 #include "casm/global/definitions.hh"
-#include "casm/mapping/StrucMapCalculatorInterface.hh"
+#include "casm/mapping/impl/StrucMapCalculatorInterface.hh"
 #include "casm/misc/CASM_Eigen_math.hh"
 #include "casm/misc/CASM_math.hh"
 #include "casm/misc/cloneable_ptr.hh"
@@ -23,7 +23,7 @@ class StrucMapCalculatorInterface;
 
 }  // namespace xtal
 
-namespace mapping_v1 {
+namespace mapping_impl {
 
 class LatticeMap;
 
@@ -795,6 +795,6 @@ class StrucMapper {
   std::vector<xtal::Lattice> _lattices_of_vol(Index prim_vol) const;
 };
 
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM
 #endif

@@ -11,7 +11,7 @@ struct SymOp;
 typedef std::vector<SymOp> SymOpVector;
 }  // namespace xtal
 
-namespace mapping_v1 {
+namespace mapping_impl {
 
 /** \ingroup Lattice
  *  @{
@@ -207,6 +207,6 @@ double symmetry_breaking_strain_cost(
     xtal::SymOpVector const &parent_point_group);
 
 /** @} */
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM
 #endif

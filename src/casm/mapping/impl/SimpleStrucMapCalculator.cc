@@ -1,4 +1,4 @@
-#include "casm/mapping/SimpleStrucMapCalculator.hh"
+#include "casm/mapping/impl/SimpleStrucMapCalculator.hh"
 
 #include "casm/crystallography/AnisoValTraits.hh"
 #include "casm/crystallography/BasicStructure.hh"
@@ -10,14 +10,14 @@
 #include "casm/crystallography/SimpleStructureTools.hh"
 #include "casm/crystallography/UnitCellCoord.hh"
 #include "casm/crystallography/io/VaspIO.hh"
-#include "casm/mapping/StrucMapping.hh"
+#include "casm/mapping/impl/StrucMapping.hh"
 #include "casm/misc/algorithm.hh"
 
 // debugging:
 #include "casm/casm_io/container/stream_io.hh"
 
 namespace CASM {
-namespace mapping_v1 {
+namespace mapping_impl {
 namespace Local {
 static xtal::Coordinate _make_superlattice_coordinate(
     Index ijk_ix, const xtal::Superlattice &superlattice,
@@ -603,5 +603,5 @@ bool _assign_molecules(
 
 }  // namespace Local
 
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM

@@ -1,4 +1,4 @@
-#include "casm/mapping/LatticeMap.hh"
+#include "casm/mapping/impl/LatticeMap.hh"
 
 #include "autotools.hh"
 #include "casm/crystallography/Strain.hh"
@@ -56,18 +56,18 @@ TEST_F(StrainCostTest, IdentityTest) {
   Eigen::Matrix3d F = identity();
   double cost;
 
-  cost = mapping_v1::isotropic_strain_cost(F);
+  cost = mapping_impl::isotropic_strain_cost(F);
   EXPECT_TRUE(almost_equal(cost, 0.0)) << "isotropic cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, cubic_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, cubic_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "cubic symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, tetragonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, tetragonal_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "tetragonal symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, hexagonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, hexagonal_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "hexagonal symmetry-breaking cost: " << cost;
 }
@@ -77,18 +77,18 @@ TEST_F(StrainCostTest, IsotropicTest) {
   Eigen::Matrix3d F = 1.1 * identity();
   double cost;
 
-  cost = mapping_v1::isotropic_strain_cost(F);
+  cost = mapping_impl::isotropic_strain_cost(F);
   EXPECT_TRUE(almost_equal(cost, 0.0)) << "isotropic cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, cubic_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, cubic_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "cubic symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, tetragonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, tetragonal_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "tetragonal symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, hexagonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, hexagonal_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "hexagonal symmetry-breaking cost: " << cost;
 }
@@ -98,18 +98,18 @@ TEST_F(StrainCostTest, TetragonalTest) {
   Eigen::Matrix3d F = tetragonal_stretch();
   double cost;
 
-  cost = mapping_v1::isotropic_strain_cost(F);
+  cost = mapping_impl::isotropic_strain_cost(F);
   EXPECT_FALSE(almost_equal(cost, 0.0)) << "isotropic cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, cubic_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, cubic_point_group);
   EXPECT_FALSE(almost_equal(cost, 0.0))
       << "cubic symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, tetragonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, tetragonal_point_group);
   EXPECT_TRUE(almost_equal(cost, 0.0))
       << "tetragonal symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, hexagonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, hexagonal_point_group);
   EXPECT_FALSE(almost_equal(cost, 0.0))
       << "hexagonal symmetry-breaking cost: " << cost;
 }
@@ -133,28 +133,28 @@ TEST_F(StrainCostTest, TetragonalTest2) {
 
   double cost_x, cost_y, cost_z;
 
-  cost_x = mapping_v1::isotropic_strain_cost(Vx);
-  cost_y = mapping_v1::isotropic_strain_cost(Vy);
-  cost_z = mapping_v1::isotropic_strain_cost(Vz);
+  cost_x = mapping_impl::isotropic_strain_cost(Vx);
+  cost_y = mapping_impl::isotropic_strain_cost(Vy);
+  cost_z = mapping_impl::isotropic_strain_cost(Vz);
   EXPECT_TRUE(almost_equal(cost_x, cost_y))
       << "isotropic cost_x: " << cost_x << " cost_y: " << cost_y;
   EXPECT_TRUE(almost_equal(cost_y, cost_z))
       << "isotropic cost_y: " << cost_y << " cost_z: " << cost_z;
 
-  cost_x = mapping_v1::symmetry_breaking_strain_cost(Vx, cubic_point_group);
-  cost_y = mapping_v1::symmetry_breaking_strain_cost(Vy, cubic_point_group);
-  cost_z = mapping_v1::symmetry_breaking_strain_cost(Vz, cubic_point_group);
+  cost_x = mapping_impl::symmetry_breaking_strain_cost(Vx, cubic_point_group);
+  cost_y = mapping_impl::symmetry_breaking_strain_cost(Vy, cubic_point_group);
+  cost_z = mapping_impl::symmetry_breaking_strain_cost(Vz, cubic_point_group);
   EXPECT_TRUE(almost_equal(cost_x, cost_y))
       << "cubic symmetry-breaking cost_x: " << cost_x << " cost_y: " << cost_y;
   EXPECT_TRUE(almost_equal(cost_y, cost_z))
       << "cubic symmetry-breaking cost_y: " << cost_y << " cost_z: " << cost_z;
 
   cost_x =
-      mapping_v1::symmetry_breaking_strain_cost(Vx, tetragonal_point_group);
+      mapping_impl::symmetry_breaking_strain_cost(Vx, tetragonal_point_group);
   cost_y =
-      mapping_v1::symmetry_breaking_strain_cost(Vy, tetragonal_point_group);
+      mapping_impl::symmetry_breaking_strain_cost(Vy, tetragonal_point_group);
   cost_z =
-      mapping_v1::symmetry_breaking_strain_cost(Vz, tetragonal_point_group);
+      mapping_impl::symmetry_breaking_strain_cost(Vz, tetragonal_point_group);
   EXPECT_FALSE(almost_equal(cost_x, cost_y))
       << "tetragonal symmetry-breaking cost_x: " << cost_x
       << " cost_y: " << cost_y;
@@ -168,18 +168,18 @@ TEST_F(StrainCostTest, ShearTest) {
   Eigen::Matrix3d F = shear_stretch();
   double cost;
 
-  cost = mapping_v1::isotropic_strain_cost(F);
+  cost = mapping_impl::isotropic_strain_cost(F);
   EXPECT_FALSE(almost_equal(cost, 0.0)) << "isotropic cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, cubic_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, cubic_point_group);
   EXPECT_FALSE(almost_equal(cost, 0.0))
       << "cubic symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, tetragonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, tetragonal_point_group);
   EXPECT_FALSE(almost_equal(cost, 0.0))
       << "tetragonal symmetry-breaking cost: " << cost;
 
-  cost = mapping_v1::symmetry_breaking_strain_cost(F, hexagonal_point_group);
+  cost = mapping_impl::symmetry_breaking_strain_cost(F, hexagonal_point_group);
   EXPECT_FALSE(almost_equal(cost, 0.0))
       << "hexagonal symmetry-breaking cost: " << cost;
 }
@@ -203,17 +203,17 @@ TEST_F(StrainCostTest, ShearTest2) {
 
   double cost_xy, cost_xz, cost_yz;
 
-  cost_xy = mapping_v1::isotropic_strain_cost(Vxy);
-  cost_xz = mapping_v1::isotropic_strain_cost(Vxz);
-  cost_yz = mapping_v1::isotropic_strain_cost(Vyz);
+  cost_xy = mapping_impl::isotropic_strain_cost(Vxy);
+  cost_xz = mapping_impl::isotropic_strain_cost(Vxz);
+  cost_yz = mapping_impl::isotropic_strain_cost(Vyz);
   EXPECT_TRUE(almost_equal(cost_xy, cost_xz))
       << "isotropic cost_xy: " << cost_xy << " cost_xz: " << cost_xz;
   EXPECT_TRUE(almost_equal(cost_xy, cost_yz))
       << "isotropic cost_xy: " << cost_xy << " cost_yz: " << cost_yz;
 
-  cost_xy = mapping_v1::symmetry_breaking_strain_cost(Vxy, cubic_point_group);
-  cost_xz = mapping_v1::symmetry_breaking_strain_cost(Vxz, cubic_point_group);
-  cost_yz = mapping_v1::symmetry_breaking_strain_cost(Vyz, cubic_point_group);
+  cost_xy = mapping_impl::symmetry_breaking_strain_cost(Vxy, cubic_point_group);
+  cost_xz = mapping_impl::symmetry_breaking_strain_cost(Vxz, cubic_point_group);
+  cost_yz = mapping_impl::symmetry_breaking_strain_cost(Vyz, cubic_point_group);
   EXPECT_TRUE(almost_equal(cost_xy, cost_xz))
       << "cubic symmetry-breaking cost_xy: " << cost_xy
       << " cost_xz: " << cost_xz;
@@ -222,11 +222,11 @@ TEST_F(StrainCostTest, ShearTest2) {
       << " cost_yz: " << cost_yz;
 
   cost_xy =
-      mapping_v1::symmetry_breaking_strain_cost(Vxy, tetragonal_point_group);
+      mapping_impl::symmetry_breaking_strain_cost(Vxy, tetragonal_point_group);
   cost_xz =
-      mapping_v1::symmetry_breaking_strain_cost(Vxz, tetragonal_point_group);
+      mapping_impl::symmetry_breaking_strain_cost(Vxz, tetragonal_point_group);
   cost_yz =
-      mapping_v1::symmetry_breaking_strain_cost(Vyz, tetragonal_point_group);
+      mapping_impl::symmetry_breaking_strain_cost(Vyz, tetragonal_point_group);
   EXPECT_TRUE(almost_equal(cost_xy, cost_xz))
       << "tetragonal symmetry-breaking cost_xy: " << cost_xy
       << " cost_xz: " << cost_xz;
@@ -278,13 +278,13 @@ TEST_F(LatticeMapTest, Test1) {
 
   bool use_symmetry_breaking_strain_cost = false;
 
-  mapping_v1::LatticeMap lattice_map{L1_lattice,
-                                     L2_lattice,
-                                     unimodular_element_range,
-                                     L1_point_group,
-                                     L2_point_group,
-                                     max_lattice_cost,
-                                     use_symmetry_breaking_strain_cost};
+  mapping_impl::LatticeMap lattice_map{L1_lattice,
+                                       L2_lattice,
+                                       unimodular_element_range,
+                                       L1_point_group,
+                                       L2_point_group,
+                                       max_lattice_cost,
+                                       use_symmetry_breaking_strain_cost};
 
   EXPECT_TRUE(
       almost_equal(lattice_map.parent_matrix(), L1_lattice.lat_column_mat()));
@@ -339,13 +339,13 @@ TEST_F(LatticeMapTest, Test2) {
 
   bool use_symmetry_breaking_strain_cost = false;
 
-  mapping_v1::LatticeMap lattice_map{L1_lattice,
-                                     L2_lattice,
-                                     unimodular_element_range,
-                                     L1_point_group,
-                                     L2_point_group,
-                                     max_lattice_cost,
-                                     use_symmetry_breaking_strain_cost};
+  mapping_impl::LatticeMap lattice_map{L1_lattice,
+                                       L2_lattice,
+                                       unimodular_element_range,
+                                       L1_point_group,
+                                       L2_point_group,
+                                       max_lattice_cost,
+                                       use_symmetry_breaking_strain_cost};
 
   double max_cost = 0.4;
   std::vector<Eigen::Matrix3d> N;

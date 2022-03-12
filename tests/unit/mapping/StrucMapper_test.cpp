@@ -1,15 +1,14 @@
 #include "autotools.hh"
 #include "casm/casm_io/container/json_io.hh"
 #include "casm/casm_io/json/jsonParser.hh"
-//#include "casm/clex/SimpleStructureTools.hh"
 #include "casm/crystallography/Adapter.hh"
 #include "casm/crystallography/BasicStructure.hh"
 #include "casm/crystallography/BasicStructureTools.hh"
 #include "casm/crystallography/SimpleStructure.hh"
 #include "casm/crystallography/SimpleStructureTools.hh"
-#include "casm/mapping/SimpleStrucMapCalculator.hh"
-#include "casm/mapping/StrucMapping.hh"
-#include "casm/mapping/io/json/StrucMapping_json_io.hh"
+#include "casm/mapping/impl/SimpleStrucMapCalculator.hh"
+#include "casm/mapping/impl/StrucMapping.hh"
+#include "casm/mapping/impl/io/json/StrucMapping_json_io.hh"
 #include "gtest/gtest.h"
 
 // BCC mapping tests
@@ -18,13 +17,14 @@ using namespace CASM;
 
 // \brief Confirm that the MappingNode maps the unmapped child to the mapped
 // child constructed by `mapper.resolve_setting` as expected
-void assert_mapping_relations(std::set<mapping_v1::MappingNode> const &mappings,
-                              mapping_v1::StrucMapper const &mapper,
-                              xtal::SimpleStructure const &unmapped_child);
+void assert_mapping_relations(
+    std::set<mapping_impl::MappingNode> const &mappings,
+    mapping_impl::StrucMapper const &mapper,
+    xtal::SimpleStructure const &unmapped_child);
 
 // \brief Confirm that the MappingNode maps the unmapped child to the mapped
 // child
-void assert_mapping_relations(mapping_v1::MappingNode const &mapping,
+void assert_mapping_relations(mapping_impl::MappingNode const &mapping,
                               xtal::SimpleStructure const &parent,
                               xtal::SimpleStructure const &mapped_child,
                               xtal::SimpleStructure const &unmapped_child);
@@ -106,7 +106,7 @@ class StrucMapperTest : public testing::Test {
 
   // Specifies parent structure, factor group, allowed species on each
   // structure site (default: SimpleStrucMapCalculator(parent));
-  mapping_v1::SimpleStrucMapCalculator calculator;
+  mapping_impl::SimpleStrucMapCalculator calculator;
 
   // Total cost weighting, lattice deformation component (default: 0.5)
   // total_cost = lattice_weight * lattice_deformation_cost +
@@ -138,8 +138,8 @@ class StrucMapperTest : public testing::Test {
   // default: 1
   Index k_best = 1;
 
-  // default: mapping_v1::big_inf()
-  double max_cost = mapping_v1::big_inf();
+  // default: mapping_impl::big_inf()
+  double max_cost = mapping_impl::big_inf();
 
   // default: -TOL
   double min_cost = -TOL;
@@ -175,7 +175,7 @@ class StrucMapperTest : public testing::Test {
 
         // Standard mapping method parameters:
         k_best(1),
-        max_cost(mapping_v1::big_inf()),
+        max_cost(mapping_impl::big_inf()),
         min_cost(-TOL),
         keep_invalid(false),
         child_factor_group(identity_group()) {
@@ -243,14 +243,14 @@ class StrucMapperTest : public testing::Test {
 /// conventional bcc parent structure, resulting in 2 equivalent mappings each,
 /// and then call `assert_mapping_relations` to check / demonstrate how
 /// the "unmapped child", "mapped child", and "parent" structures are related
-/// via the mapping_v1::MappingNode mapping results.
+/// via the mapping_impl::MappingNode mapping results.
 
 TEST_F(StrucMapperTest, MapDeformedStruc0) {
-  mapping_v1::StrucMapper mapper(calculator, lattice_weight, max_volume_change,
-                                 robust, soft_va_limit, cost_tol, min_va_frac,
-                                 max_va_frac);
+  mapping_impl::StrucMapper mapper(calculator, lattice_weight,
+                                   max_volume_change, robust, soft_va_limit,
+                                   cost_tol, min_va_frac, max_va_frac);
 
-  std::set<mapping_v1::MappingNode> mappings = mapper.map_deformed_struc(
+  std::set<mapping_impl::MappingNode> mappings = mapper.map_deformed_struc(
       child, k_best, max_cost, min_cost, keep_invalid, child_factor_group);
 
   EXPECT_EQ(mappings.size(), 2);
@@ -258,13 +258,13 @@ TEST_F(StrucMapperTest, MapDeformedStruc0) {
 }
 
 TEST_F(StrucMapperTest, MapDeformedStrucImposeLatticeVols0) {
-  mapping_v1::StrucMapper mapper(calculator, lattice_weight, max_volume_change,
-                                 robust, soft_va_limit, cost_tol, min_va_frac,
-                                 max_va_frac);
+  mapping_impl::StrucMapper mapper(calculator, lattice_weight,
+                                   max_volume_change, robust, soft_va_limit,
+                                   cost_tol, min_va_frac, max_va_frac);
 
   Index min_vol = 1;
   Index max_vol = 4;
-  std::set<mapping_v1::MappingNode> mappings =
+  std::set<mapping_impl::MappingNode> mappings =
       mapper.map_deformed_struc_impose_lattice_vols(
           child, min_vol, max_vol, k_best, max_cost, min_cost, keep_invalid,
           child_factor_group);
@@ -274,9 +274,9 @@ TEST_F(StrucMapperTest, MapDeformedStrucImposeLatticeVols0) {
 }
 
 TEST_F(StrucMapperTest, MapDeformedStrucImposeLattice0) {
-  mapping_v1::StrucMapper mapper(calculator, lattice_weight, max_volume_change,
-                                 robust, soft_va_limit, cost_tol, min_va_frac,
-                                 max_va_frac);
+  mapping_impl::StrucMapper mapper(calculator, lattice_weight,
+                                   max_volume_change, robust, soft_va_limit,
+                                   cost_tol, min_va_frac, max_va_frac);
 
   // clang-format off
   Eigen::Matrix3d L;
@@ -285,7 +285,7 @@ TEST_F(StrucMapperTest, MapDeformedStrucImposeLattice0) {
     0., 4., 0.,
     0., 0., 4.;
   // clang-format on
-  std::set<mapping_v1::MappingNode> mappings =
+  std::set<mapping_impl::MappingNode> mappings =
       mapper.map_deformed_struc_impose_lattice(child, xtal::Lattice(L), k_best,
                                                max_cost, min_cost, keep_invalid,
                                                child_factor_group);
@@ -295,9 +295,9 @@ TEST_F(StrucMapperTest, MapDeformedStrucImposeLattice0) {
 }
 
 TEST_F(StrucMapperTest, MapDeformedStrucImposeLatticeNode0) {
-  mapping_v1::StrucMapper mapper(calculator, lattice_weight, max_volume_change,
-                                 robust, soft_va_limit, cost_tol, min_va_frac,
-                                 max_va_frac);
+  mapping_impl::StrucMapper mapper(calculator, lattice_weight,
+                                   max_volume_change, robust, soft_va_limit,
+                                   cost_tol, min_va_frac, max_va_frac);
 
   // clang-format off
   Eigen::Matrix3d L;
@@ -311,10 +311,10 @@ TEST_F(StrucMapperTest, MapDeformedStrucImposeLatticeNode0) {
   xtal::Lattice unmapped_child_prim_lattice{child.lat_column_mat};
   xtal::Lattice unmapped_child_superlattice{child.lat_column_mat};
   Index child_N_atom = 0;  // no longer used
-  mapping_v1::LatticeNode lattice_node(
+  mapping_impl::LatticeNode lattice_node(
       parent_prim_lattice, parent_superlattice, unmapped_child_prim_lattice,
       unmapped_child_superlattice, child_N_atom);
-  std::set<mapping_v1::MappingNode> mappings =
+  std::set<mapping_impl::MappingNode> mappings =
       mapper.map_deformed_struc_impose_lattice_node(
           child, lattice_node, k_best, max_cost, min_cost, keep_invalid);
 
@@ -323,11 +323,11 @@ TEST_F(StrucMapperTest, MapDeformedStrucImposeLatticeNode0) {
 }
 
 TEST_F(StrucMapperTest, MapIdealStruc0) {
-  mapping_v1::StrucMapper mapper(calculator, lattice_weight, max_volume_change,
-                                 robust, soft_va_limit, cost_tol, min_va_frac,
-                                 max_va_frac);
+  mapping_impl::StrucMapper mapper(calculator, lattice_weight,
+                                   max_volume_change, robust, soft_va_limit,
+                                   cost_tol, min_va_frac, max_va_frac);
 
-  std::set<mapping_v1::MappingNode> mappings =
+  std::set<mapping_impl::MappingNode> mappings =
       mapper.map_ideal_struc(child, k_best, max_cost, min_cost, keep_invalid);
 
   EXPECT_EQ(mappings.size(), 2);
@@ -336,12 +336,13 @@ TEST_F(StrucMapperTest, MapIdealStruc0) {
 
 // \brief Confirm that the MappingNode maps the unmapped child to the mapped
 // child constructed by `mapper.resolve_setting` as expected
-void assert_mapping_relations(std::set<mapping_v1::MappingNode> const &mappings,
-                              mapping_v1::StrucMapper const &mapper,
-                              xtal::SimpleStructure const &unmapped_child) {
+void assert_mapping_relations(
+    std::set<mapping_impl::MappingNode> const &mappings,
+    mapping_impl::StrucMapper const &mapper,
+    xtal::SimpleStructure const &unmapped_child) {
   xtal::SimpleStructure const &parent = mapper.calculator().parent();
 
-  for (mapping_v1::MappingNode const &mapping : mappings) {
+  for (mapping_impl::MappingNode const &mapping : mappings) {
     xtal::SimpleStructure mapped_child =
         mapper.calculator().resolve_setting(mapping, unmapped_child);
     assert_mapping_relations(mapping, parent, mapped_child, unmapped_child);
@@ -350,7 +351,7 @@ void assert_mapping_relations(std::set<mapping_v1::MappingNode> const &mappings,
 
 // \brief Confirm that the MappingNode maps the unmapped child to the mapped
 // child
-void assert_mapping_relations(mapping_v1::MappingNode const &mapping,
+void assert_mapping_relations(mapping_impl::MappingNode const &mapping,
                               xtal::SimpleStructure const &parent,
                               xtal::SimpleStructure const &mapped_child,
                               xtal::SimpleStructure const &unmapped_child) {
@@ -368,7 +369,7 @@ void assert_mapping_relations(mapping_v1::MappingNode const &mapping,
   // S2 = L2 * T2
   // mapped_child.lat_column_mat = Q^{N} * L2 * T2
 
-  mapping_v1::LatticeNode const &lattice_node = mapping.lattice_node;
+  mapping_impl::LatticeNode const &lattice_node = mapping.lattice_node;
   Eigen::Matrix3d S1xN = lattice_node.parent.superlattice().lat_column_mat();
   Eigen::Matrix3l T1xN = lattice_node.parent.transformation_matrix_to_super();
   Eigen::Matrix3d L2 = unmapped_child.lat_column_mat;

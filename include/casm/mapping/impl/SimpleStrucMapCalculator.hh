@@ -2,7 +2,7 @@
 #define CASM_mapping_SimpleStrucMapCalculator
 
 #include "casm/crystallography/Adapter.hh"
-#include "casm/mapping/StrucMapCalculatorInterface.hh"
+#include "casm/mapping/impl/StrucMapCalculatorInterface.hh"
 
 namespace CASM {
 
@@ -12,7 +12,7 @@ struct SymOp;
 typedef std::vector<SymOp> SymOpVector;
 }  // namespace xtal
 
-namespace mapping_v1 {
+namespace mapping_impl {
 
 // In this file:
 struct MappingNode;
@@ -111,6 +111,6 @@ class SimpleStrucMapCalculator : public StrucMapCalculatorInterface {
                                         std::move(_allowed_species));
   }
 };
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM
 #endif

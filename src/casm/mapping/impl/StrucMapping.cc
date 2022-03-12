@@ -1,4 +1,4 @@
-#include "casm/mapping/StrucMapping.hh"
+#include "casm/mapping/impl/StrucMapping.hh"
 
 #include "casm/container/algorithm.hh"
 #include "casm/crystallography/CanonicalForm.hh"
@@ -12,12 +12,12 @@
 #include "casm/external/Eigen/src/Core/PermutationMatrix.h"
 #include "casm/external/Eigen/src/Core/util/Constants.h"
 #include "casm/external/Eigen/src/Core/util/Meta.h"
-#include "casm/mapping/LatticeMap.hh"
-#include "casm/mapping/StrucMapCalculatorInterface.hh"
+#include "casm/mapping/impl/LatticeMap.hh"
+#include "casm/mapping/impl/StrucMapCalculatorInterface.hh"
 #include "casm/misc/CASM_Eigen_math.hh"
 
 namespace CASM {
-namespace mapping_v1 {
+namespace mapping_impl {
 
 namespace Local {
 
@@ -1984,5 +1984,5 @@ std::set<MappingNode> StrucMapper::_seed_k_best_from_super_lats(
   return result;
 }
 
-}  // namespace mapping_v1
+}  // namespace mapping_impl
 }  // namespace CASM
