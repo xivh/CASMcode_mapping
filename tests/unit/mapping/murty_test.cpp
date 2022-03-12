@@ -50,42 +50,14 @@ TEST(MurtyTest, Test1) {
       murty::solve(hungarian::solve, C, k_best, min_cost, max_cost);
 
   EXPECT_EQ(assignments.size(), 6);
-  EXPECT_TRUE(almost_equal(assignments[0], {0,
-                                            {
-                                                0,
-                                                2,
-                                                1,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[1], {3,
-                                            {
-                                                0,
-                                                1,
-                                                2,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[2], {5,
-                                            {
-                                                1,
-                                                2,
-                                                0,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[3], {5,
-                                            {
-                                                2,
-                                                0,
-                                                1,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[4], {5,
-                                            {
-                                                1,
-                                                0,
-                                                2,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[5], {8,
-                                            {
-                                                2,
-                                                1,
-                                                0,
-                                            }}));
+  // clang-format off
+  EXPECT_TRUE(almost_equal(assignments[0], {0, {0, 2, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[1], {3, {0, 1, 2, }}));
+  EXPECT_TRUE(almost_equal(assignments[2], {5, {1, 2, 0, }}));
+  EXPECT_TRUE(almost_equal(assignments[3], {5, {2, 0, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[4], {5, {1, 0, 2, }}));
+  EXPECT_TRUE(almost_equal(assignments[5], {8, {2, 1, 0, }}));
+  // clang-format on
 }
 
 TEST(MurtyTest, Test2) {
@@ -103,30 +75,12 @@ TEST(MurtyTest, Test2) {
       murty::solve(hungarian::solve, C, k_best, min_cost, max_cost);
 
   EXPECT_EQ(assignments.size(), 4);
-  EXPECT_TRUE(almost_equal(assignments[0], {3,
-                                            {
-                                                0,
-                                                1,
-                                                2,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[1], {5,
-                                            {
-                                                1,
-                                                2,
-                                                0,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[2], {5,
-                                            {
-                                                2,
-                                                0,
-                                                1,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[3], {5,
-                                            {
-                                                1,
-                                                0,
-                                                2,
-                                            }}));
+  // clang-format off
+  EXPECT_TRUE(almost_equal(assignments[0], {3, {0, 1, 2, }}));
+  EXPECT_TRUE(almost_equal(assignments[1], {5, {1, 2, 0, }}));
+  EXPECT_TRUE(almost_equal(assignments[2], {5, {2, 0, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[3], {5, {1, 0, 2, }}));
+  // clang-format on
 }
 
 TEST(MurtyTest, Test3) {
@@ -144,34 +98,11 @@ TEST(MurtyTest, Test3) {
       murty::solve(hungarian::solve, C, k_best, min_cost, max_cost);
 
   EXPECT_EQ(assignments.size(), 5);
-  EXPECT_TRUE(almost_equal(assignments[0], {0,
-                                            {
-                                                0,
-                                                2,
-                                                1,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[1], {3,
-                                            {
-                                                0,
-                                                1,
-                                                2,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[2], {5,
-                                            {
-                                                1,
-                                                2,
-                                                0,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[3], {5,
-                                            {
-                                                2,
-                                                0,
-                                                1,
-                                            }}));
-  EXPECT_TRUE(almost_equal(assignments[4], {5,
-                                            {
-                                                1,
-                                                0,
-                                                2,
-                                            }}));
+  // clang-format off
+  EXPECT_TRUE(almost_equal(assignments[0], {0, {0, 2, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[1], {3, {0, 1, 2, }}));
+  EXPECT_TRUE(almost_equal(assignments[2], {5, {1, 2, 0, }}));
+  EXPECT_TRUE(almost_equal(assignments[3], {5, {2, 0, 1, }}));
+  EXPECT_TRUE(almost_equal(assignments[4], {5, {1, 0, 2, }}));
+  // clang-format on
 }
