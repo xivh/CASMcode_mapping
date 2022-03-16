@@ -63,16 +63,12 @@ namespace mapping {
 ///     coordinates, where N is the number of atoms
 /// \param _permutation A size N permutation vector
 /// \param _translation A translation vector, in Cartesian coordiantes
-/// \param _time_reversal If true, indicates parent and child structures
-///     are related by time reversal.
 AtomMapping::AtomMapping(Eigen::MatrixXd const &_displacement,
                          std::vector<Index> const &_permutation,
-                         Eigen::Vector3d const &_translation,
-                         bool _time_reversal)
+                         Eigen::Vector3d const &_translation)
     : displacement(_displacement),
       permutation(_permutation),
-      translation(_translation),
-      time_reversal(_time_reversal) {}
+      translation(_translation) {}
 
 }  // namespace mapping
 }  // namespace CASM

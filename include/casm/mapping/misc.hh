@@ -16,20 +16,17 @@ namespace mapping {
 /// \param results A map of cost -> solution
 /// \param overflow A map of cost -> solution for solutions approximately equal
 ///     to results.rbegin()
-/// \param max_cost The max cost of solution to keep in results (kept if cost
-///     < max_cost + cost_tol). If results.size() > *k_best, the max_cost is
-///     shrunk to results.rbegin()->first.
 ///
 /// This does the following:
 /// - Nothing if !k_best.has_value()
 /// - While results.size() > *k_best:
 ///   - Move results approximately equal to results.rbegin() to overflow, until
 ///     results.size() == *k_best
-///   - Shrink max_cost to equal results.rbegin()->first
-template <typename K, typename T>
+template <typename K, typename T, typename GetCostFromKey>
 void maintain_k_best_results(std::optional<int> const &k_best, double cost_tol,
                              std::multimap<K, T> &results,
-                             std::multimap<K, T> &overflow, double &max_cost) {
+                             std::multimap<K, T> &overflow,
+                             GetCostFromKey get_cost_f) {
   if (!k_best.has_value()) {
     return;
   }
@@ -44,7 +41,8 @@ void maintain_k_best_results(std::optional<int> const &k_best, double cost_tol,
 
     // if extra is not approximately equal cost to k-th best, erase extra and
     // overflow
-    if ((last_it->first.cost - nexttolast_it->first.cost) > cost_tol) {
+    if ((get_cost_f(last_it->first) - get_cost_f(nexttolast_it->first)) >
+        cost_tol) {
       results.erase(last_it);
       overflow.clear();
     }
@@ -52,8 +50,6 @@ void maintain_k_best_results(std::optional<int> const &k_best, double cost_tol,
     else {
       overflow.insert(results.extract(last_it));
     }
-    // shrink max_cost
-    max_cost = results.rbegin()->first.cost;
   }
 }
 

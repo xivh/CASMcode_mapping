@@ -1,5 +1,6 @@
 #include "casm/mapping/LatticeMapping.hh"
 
+#include "casm/crystallography/Lattice.hh"
 #include "casm/misc/CASM_Eigen_math.hh"
 
 namespace CASM {
@@ -59,6 +60,16 @@ LatticeMapping::LatticeMapping(
     throw std::runtime_error(
         "Error in LatticeMapping: reorientation matrix is not unimodular");
   }
+}
+
+/// \brief Return mapped lattice, L2 = F * L1 * T * N
+xtal::Lattice make_mapped_lattice(xtal::Lattice const &prim_lattice,
+                                  LatticeMapping const &lattice_mapping) {
+  auto const &F = lattice_mapping.deformation_gradient;
+  auto const &L1 = prim_lattice.lat_column_mat();
+  auto const &T = lattice_mapping.transformation_matrix_to_super;
+  auto const &N = lattice_mapping.reorientation;
+  return xtal::Lattice(F * L1 * T * N, prim_lattice.tol());
 }
 
 }  // namespace mapping

@@ -4,6 +4,10 @@
 #include "casm/global/eigen.hh"
 
 namespace CASM {
+namespace xtal {
+class Lattice;
+}
+
 namespace mapping {
 
 // Note: See source file for full documentation
@@ -35,6 +39,10 @@ struct LatticeMapping {
   /// \brief V, of F = Q * U = V * Q
   Eigen::Matrix3d left_stretch;
 };
+
+/// \brief Return mapped lattice, L2 = F * L1 * T * N
+xtal::Lattice make_mapped_lattice(xtal::Lattice const &prim_lattice,
+                                  LatticeMapping const &lattice_mapping);
 
 }  // namespace mapping
 }  // namespace CASM

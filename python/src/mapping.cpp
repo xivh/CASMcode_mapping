@@ -24,6 +24,13 @@ namespace CASMpy {
 using namespace CASM;
 using namespace CASM::mapping;
 
+StructureMapping make_structure_mapping(xtal::BasicStructure const &prim,
+                                        LatticeMapping const &lattice_mapping,
+                                        AtomMapping const &atom_mapping) {
+  return StructureMapping(std::make_shared<xtal::BasicStructure const>(prim),
+                          lattice_mapping, atom_mapping);
+}
+
 }  // namespace CASMpy
 
 PYBIND11_MODULE(mapping, m) {
@@ -179,9 +186,6 @@ PYBIND11_MODULE(mapping, m) {
      - :math:`\vec{d}(i)`: The Cartesian displacement associated with the atom
         at the i-th site in the parent superstructure.
 
-     Additionally, structures with magnetic spin may be related by time
-     reversal symmetry.
-
      Notes
      -----
      Displacements can be validly defined with different references. This
@@ -191,9 +195,9 @@ PYBIND11_MODULE(mapping, m) {
 
      )pbdoc")
       .def(py::init<Eigen::MatrixXd const &, std::vector<Index> const &,
-                    Eigen::Vector3d const &, bool>(),
+                    Eigen::Vector3d const &>(),
            py::arg("displacement"), py::arg("permutation"),
-           py::arg("translation"), py::arg("time_reversal"), R"pbdoc(
+           py::arg("translation"), R"pbdoc(
           Construct an atom mapping
 
           Parameters
@@ -206,10 +210,7 @@ PYBIND11_MODULE(mapping, m) {
              The permutation vector, :math:`p_i`.
           translation : array_like, shape=(3,1),
              The translation vector, :math:`\vec{t}`.
-          time_reversal : bool, default=False
-             If True, the parent and child structures are related by time
-             reversal symmetry.
-           )pbdoc")
+          )pbdoc")
       .def(
           "displacement", [](AtomMapping const &m) { return m.displacement; },
           R"pbdoc(Return the shape=(3,n) matrix whose columns are the "
@@ -219,35 +220,37 @@ PYBIND11_MODULE(mapping, m) {
           R"pbdoc(Return the permutation vector, :math:`p_i`.)pbdoc")
       .def(
           "translation", [](AtomMapping const &m) { return m.translation; },
-          R"pbdoc(Return the translation vector, :math:`\vec{t}`.)pbdoc")
-      .def(
-          "time_reversal", [](AtomMapping const &m) { return m.time_reversal; },
-          "Return True if the parent and child structures are related by time "
-          "reversal symmetry.");
+          R"pbdoc(Return the translation vector, :math:`\vec{t}`.)pbdoc");
 
   py::class_<StructureMapping>(m, "StructureMapping", R"pbdoc(
     A mapping between two structures
 
     A structure mapping is a combination of:
 
+    - A :class:`~casm.xtal.Prim`
     - A :class:`~casm.mapping.LatticeMapping`
     - An :class:`~casm.mapping.AtomMapping`
 
     See those class descriptions for details of the mappings.
 
     )pbdoc")
-      .def(py::init<LatticeMapping const &, AtomMapping const &>(),
+      .def(py::init(&make_structure_mapping), py::arg("prim"),
            py::arg("lattice_mapping"), py::arg("atom_mapping"), R"pbdoc(
           Construct a structure mapping
 
           Parameters
           ----------
 
+          prim : casm.xtal.Prim
+              A :class:`~casm.xtal.Prim`
           lattice_mapping : casm.mapping.LatticeMapping
               A :class:`~casm.mapping.LatticeMapping`
           atom_mapping : casm.mapping.AtomMapping
               An :class:`~casm.mapping.AtomMapping`
           )pbdoc")
+      .def(
+          "prim", [](StructureMapping const &m) { return *m.shared_prim; },
+          "Return the :class:`~casm.xtal.Prim`.")
       .def(
           "lattice_mapping",
           [](StructureMapping const &m) { return m.lattice_mapping; },
@@ -256,6 +259,33 @@ PYBIND11_MODULE(mapping, m) {
           "atom_mapping",
           [](StructureMapping const &m) { return m.atom_mapping; },
           "Return the :class:`~casm.mapping.AtomMapping`.");
+
+  m.def(
+      "has_same_prim",
+      [](StructureMapping const &first, StructureMapping const &second) {
+        return first.shared_prim == second.shared_prim;
+      },
+      R"pbdoc(
+      Check if StructureMapping share the same prim
+
+      Notes
+      -----
+      Currently this check is not valid for StructureMapping manually constructed
+      in Python, only StructureMapping output from a mapping method.
+
+
+      Parameters
+      ----------
+      first : casm.mapping.StructureMapping
+          The first StructureMapping
+      second : casm.mapping.StructureMapping
+          The second StructureMapping
+
+      Returns
+      -------
+      bool : True if first and second share the same prim
+      )pbdoc",
+      py::arg("first"), py::arg("second"));
 
   py::class_<StructureMappingCost>(m, "StructureMappingCost", R"pbdoc(
    Holds mapping cost between two structures

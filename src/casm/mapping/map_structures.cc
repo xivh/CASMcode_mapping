@@ -82,6 +82,8 @@ std::vector<std::pair<StructureMappingCost, StructureMapping>> map_structures(
     double min_cost, double max_cost, double lattice_cost_weight,
     std::string strain_cost_method, std::string atom_cost_method, int k_best,
     double cost_tol) {
+  auto shared_prim = std::make_shared<xtal::BasicStructure const>(prim);
+
   bool symmetrize_strain_cost;
   if (strain_cost_method == "isotropic_strain_cost") {
     symmetrize_strain_cost = false;
@@ -175,7 +177,7 @@ std::vector<std::pair<StructureMappingCost, StructureMapping>> map_structures(
     results.emplace_back(
         StructureMappingCost(mapping_node.lattice_node.cost,
                              mapping_node.atomic_node.cost, mapping_node.cost),
-        StructureMapping(lattice_mapping, atom_mapping));
+        StructureMapping(shared_prim, lattice_mapping, atom_mapping));
   }
 
   return results;

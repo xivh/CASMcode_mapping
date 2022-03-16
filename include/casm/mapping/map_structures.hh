@@ -18,21 +18,9 @@ struct SymOp;
 
 namespace mapping {
 struct StructureMapping;
+struct StructureMappingCost;
 
 // Note: See source file for full documentation
-
-/// \brief Used to sort structure mappings and store the lattice
-///     mapping cost, atom mapping cost, and combined total cost.
-struct StructureMappingCost {
-  StructureMappingCost(double _lattice_cost, double _atom_cost,
-                       double _total_cost)
-      : lattice_cost(_lattice_cost),
-        atom_cost(_atom_cost),
-        total_cost(_total_cost) {}
-  double lattice_cost;
-  double atom_cost;
-  double total_cost;
-};
 
 /// \brief Find structure mappings, given a range of parent superstructure
 /// volumes

@@ -6,6 +6,7 @@
 #include "casm/crystallography/SymType.hh"
 #include "casm/mapping/AtomMapping.hh"
 #include "casm/mapping/LatticeMapping.hh"
+#include "casm/mapping/SearchData.hh"
 #include "casm/mapping/impl/SimpleStrucMapCalculator.hh"
 #include "casm/mapping/impl/StrucMapping.hh"
 
@@ -73,8 +74,17 @@ mapping::AtomMapping make_atom_mapping(
   Eigen::MatrixXd disp = mapping_node.atom_displacement;
   std::vector<Index> perm = mapping_node.atom_permutation;
   Eigen::Vector3d trans = deformation_gradient * atomic_node.translation;
-  bool time_reversal = atomic_node.time_reversal;
-  return mapping::AtomMapping{disp, perm, trans, time_reversal};
+  return mapping::AtomMapping{disp, perm, trans};
+}
+
+bool is_symmetry_breaking_atom_cost(std::string atom_cost_method) {
+  if (atom_cost_method == "isotropic_atom_cost") {
+    return false;
+  } else if (atom_cost_method == "symmetry_breaking_atom_cost") {
+    return true;
+  } else {
+    throw std::runtime_error("Error: atom_cost_method not recognized");
+  }
 }
 
 }  // namespace mapping_impl
@@ -106,15 +116,8 @@ std::vector<std::pair<double, AtomMapping>> map_atoms(
     std::vector<xtal::SymOp> prim_factor_group, double min_cost,
     double max_cost, std::string atom_cost_method, int k_best,
     double cost_tol) {
-  bool symmetrize_atom_cost;
-  if (atom_cost_method == "isotropic_atom_cost") {
-    symmetrize_atom_cost = false;
-  } else if (atom_cost_method == "symmetry_breaking_atom_cost") {
-    symmetrize_atom_cost = true;
-  } else {
-    throw std::runtime_error(
-        "Error in map_atoms: atom_cost_method not recognized");
-  }
+  bool symmetrize_atom_cost =
+      mapping_impl::is_symmetry_breaking_atom_cost(atom_cost_method);
 
   if (k_best < 1) {
     throw std::runtime_error("Error in map_atoms: k_best < 1 is not allowed");

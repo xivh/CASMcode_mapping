@@ -129,7 +129,12 @@ std::vector<std::pair<double, LatticeMapping>> map_lattices(
 
       // maintain results.size() <= *k_best, keep approximately equal results,
       // shrinks max_cost to results.rbegin() if results.size() == *k_best
-      maintain_k_best_results(k_best, cost_tol, results, overflow, max_cost);
+      maintain_k_best_results(
+          k_best, cost_tol, results, overflow,
+          [](mapping_impl::LatticeMappingKey const &key) { return key.cost; });
+      if (k_best.has_value() && results.size() == *k_best) {
+        max_cost = results.rbegin()->first.cost;
+      }
     }
 
     // iterate reorientation matrices until finding one with cost < max_cost +
@@ -140,12 +145,9 @@ std::vector<std::pair<double, LatticeMapping>> map_lattices(
   while (overflow.size()) {
     results.insert(overflow.extract(overflow.begin()));
   }
-
   std::vector<std::pair<double, LatticeMapping>> final;
-  auto it = results.begin();
-  while (it != results.end()) {
-    final.emplace_back(it->first.cost, it->second);
-    ++it;
+  for (auto const &pair : results) {
+    final.emplace_back(pair.first.cost, pair.second);
   }
   return final;
 }

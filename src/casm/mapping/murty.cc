@@ -1,154 +1,9 @@
 #include "casm/mapping/murty.hh"
 
-#include <map>
-#include <set>
-
-#include "casm/misc/Comparisons.hh"
-
-// // debug:
-// #include <iostream>
-// #include "casm/casm_io/container/json_io.hh"
-// #include "casm/casm_io/container/stream_io.hh"
-
 namespace CASM {
 namespace mapping {
 namespace murty {
-
-// jsonParser forced_off_to_json(std::vector<std::pair<Index, Index>> const
-// &forced_off, jsonParser &json) {
-//   json.put_array();
-//   for (auto const &pair : forced_off) {
-//     jsonParser tmp;
-//     tmp.put_array();
-//     tmp.push_back(pair.first);
-//     tmp.push_back(pair.second);
-//     json.push_back(tmp);
-//   }
-//   return json;
-// }
-
 namespace murty_impl {
-
-/// \brief Return the cost for a particular assignment
-double make_cost(Eigen::MatrixXd const &cost_matrix,
-                 Assignment const &assignment) {
-  double cost = 0.0;
-  for (Index i = 0; i < assignment.size(); ++i) {
-    cost += cost_matrix(i, assignment[i]);
-  }
-  return cost;
-}
-
-/// \brief Solve the assignment problem given certain assignments
-///    forced on and certain assignments forced off
-///
-/// \param assign_f Method used for calculating the best assignment
-/// \param cost_matrix The cost of assigning "worker" i to "task" j is
-///     cost_matrix(i,j). This is the original, full, cost_matrix.
-/// \param unassigned_rows Indices of "workers" (rows) not currently
-///     forced into a particular assignment.
-/// \param unassigned_rows Indices of "tasks" (columns) not currently
-///     forced into a particular assignment.
-/// \param forced_off Pairs of "workers" and "tasks" {row, column}
-///     which are forced to be not be part of the assignment solution.
-/// \param infinity Cost used for "infinity", when an assignment is forced
-///     off
-/// \param tol Tolerance used for comparing costs
-///
-/// \returns {sub_assignment_cost, sub_assignment}, where
-///     sub_assignment_cost is the cost of the sub_assignment only,
-///     and sub_assignment is the optimal assignment {row, column}
-///      of the sub cost matrix formed from the unassigned_rows and
-///     unassigned_cols of the cost matrix, given the constraints.
-///
-std::pair<double, std::map<Index, Index>> make_sub_assignment(
-    AssignmentMethod assign_f, Eigen::MatrixXd cost_matrix,
-    std::set<Index> const &unassigned_rows,
-    std::set<Index> const &unassigned_cols,
-    std::vector<std::pair<Index, Index>> const &forced_off, double infinity,
-    double tol) {
-  // --- Setup sub-assignment problem ---
-  Eigen::MatrixXd sub_cost_matrix(unassigned_rows.size(),
-                                  unassigned_cols.size());
-
-  // Use infinity cost for assignments that are forced off
-  for (auto const &pair : forced_off) {
-    cost_matrix(pair.first, pair.second) = infinity;
-  }
-
-  // Use original cost for assignments that are not forced off
-  Index row = 0;
-  for (Index full_matrix_row : unassigned_rows) {
-    Index col = 0;
-    for (Index full_matrix_col : unassigned_cols) {
-      sub_cost_matrix(row, col) = cost_matrix(full_matrix_row, full_matrix_col);
-      ++col;
-    }
-    ++row;
-  }
-
-  // --- Solve sub-assignment problem ---
-  std::pair<double, Assignment> tmp = assign_f(sub_cost_matrix, infinity, tol);
-  std::pair<double, std::map<Index, Index>> result;
-  result.first = tmp.first;
-
-  // If cost is >= infinity...
-  // no solution that doesn't include forced_off assignment
-  if (result.first > infinity - tol) {
-    return result;
-  }
-
-  // --- Convert sub-problem indices to full-problem indices ---
-  auto unassigned_rows_it = unassigned_rows.begin();
-  std::vector<Index> unassigned_cols_vec{unassigned_cols.begin(),
-                                         unassigned_cols.end()};
-  for (Index n : tmp.second) {
-    result.second.emplace(*unassigned_rows_it, unassigned_cols_vec[n]);
-    ++unassigned_rows_it;
-  }
-  return result;
-}
-
-/// \brief Encodes a constrained solution to the assignment problem
-///
-/// The assignment problem is: minimize the cost of assigning m
-/// "workers" to n "tasks", where the cost of assigning "worker" i
-/// to "task" j is cost_matrix(i,j).
-///
-/// The Node forces some assignments (i,j) "on" (assignment is
-/// made in all solutions considered) and some assignments (i,j)
-/// "off" (cost is set to infinity so assignment is never made).
-/// The unassigned rows and columns are stored for convenience, and
-/// the assignment of those rows and columns can be stored in
-/// `sub_assignment` when the constrained problem is solved. The
-/// final, full assignment can be constructed by combining
-/// `forced_on` and `sub_assignment`.
-struct Node : public Comparisons<CRTPBase<Node>> {
-  /// \brief Map of which row (the key) is assigned to
-  /// which column (the value)
-  std::map<Index, Index> forced_on;
-
-  /// \brief The assignments which are forced off, as
-  /// pairs of {row, column}
-  std::vector<std::pair<Index, Index>> forced_off;
-
-  /// \brief The unassigned rows - before assignment
-  std::set<Index> unassigned_rows;
-
-  /// \brief The unassigned columns - before assignment
-  std::set<Index> unassigned_cols;
-
-  /// \brief The optimal assignment {row, column} of the sub
-  /// cost matrix formed from the unassigned_rows and unassigned_cols
-  /// of the cost matrix
-  std::map<Index, Index> sub_assignment;
-
-  /// \brief Total cost, including forced_on and sub_assignment
-  double cost;
-
-  /// \brief Compare by cost only
-  bool operator<(Node const &rhs) const { return this->cost < rhs.cost; }
-};
 
 /// \brief Returns the cost due to just "forced_on" assignments
 double make_forced_on_cost(Eigen::MatrixXd const &cost_matrix,
@@ -158,93 +13,6 @@ double make_forced_on_cost(Eigen::MatrixXd const &cost_matrix,
     forced_on_cost += cost_matrix(pair.first, pair.second);
   }
   return forced_on_cost;
-}
-
-/// \brief Returns an initial Node representing the
-/// unconstrained assignment problem
-///
-/// The initial Node has empty forced_on, forced_off,
-/// and sub_assignment, while unassigned_rows and unassigned_cols
-/// include all rows and columns in the cost_matrix.
-Node make_initial_node(Eigen::MatrixXd const &cost_matrix) {
-  Node node;
-  for (Index i = 0; i < cost_matrix.rows(); ++i) {
-    node.unassigned_rows.insert(i);
-  }
-  for (Index i = 0; i < cost_matrix.cols(); ++i) {
-    node.unassigned_cols.insert(i);
-  }
-  return node;
-}
-
-/// \brief Returns the full assignment
-///
-/// This combines forced_on and sub_assignment and copies
-/// the solution to a vector, under the assumption that
-/// all workers must be assigned.
-Assignment make_assignment(Node const &node) {
-  std::map<Index, Index> ordered = node.forced_on;
-  for (auto const &x : node.sub_assignment) {
-    ordered.emplace(x);
-  }
-  Assignment assignment;
-  for (auto const &x : ordered) {
-    assignment.push_back(x.second);
-  }
-  return assignment;
-}
-
-/// \brief Partition a Node, adding results to a multiset of Node
-///
-/// \param node_set A multiset of Node, sorted by ascending cost, containing
-///     suboptimal assignments, as constructed by Murty Algorithm partitioning
-/// \param assign_f Method used for calculating the best assignment
-/// \param cost_matrix The cost of assigning "worker" i to "task" j is
-///     cost_matrix(i,j)
-/// \param node Encodes the "current best" assignment
-/// \param infinity Cost used for "infinity", when an assignment is forced
-///     off
-/// \param tol Tolerance used for comparing costs
-///
-/// \returns A Node encoding the "next best" assignment
-void partition(std::multiset<Node> &node_set, AssignmentMethod assign_f,
-               Eigen::MatrixXd const &cost_matrix, Node const &node,
-               double infinity, double tol) {
-  // node partitioning:
-  // - where node.sub_assignment == {x0, x1, x2, x3, ...}, xi={row,column}
-  // sub-node 0: {node.forced_on, node.forced_off + x0}
-  // sub-node 1: {node.forced_on + x0, node.forced_off + x1}
-  // sub-node 2: {node.forced_on + x0 + x1, node.forced_off + x2}
-  // sub-node 3: {node.forced_on + x0 + x1 + x2, node.forced_off + x3}
-  // ...
-
-  Node subnode = node;
-
-  // 'x' is a particular assignement {worker/row, task/column}
-  for (auto const &x : node.sub_assignment) {
-    subnode.forced_off.push_back(x);
-
-    double sub_assignment_cost;
-    std::tie(sub_assignment_cost, subnode.sub_assignment) = make_sub_assignment(
-        assign_f, cost_matrix, subnode.unassigned_rows, subnode.unassigned_cols,
-        subnode.forced_off, infinity, tol);
-
-    // handle failure to assign all "workers" (rows) by not saving the node
-    if (subnode.sub_assignment.size() + subnode.forced_on.size() ==
-        cost_matrix.rows()) {
-      subnode.cost =
-          sub_assignment_cost + make_forced_on_cost(cost_matrix, subnode);
-      node_set.insert(subnode);
-    }
-
-    subnode.forced_on.emplace(x);
-    if (subnode.forced_on.size() == cost_matrix.rows()) {
-      break;
-    }
-    subnode.unassigned_rows.erase(x.first);
-    subnode.unassigned_cols.erase(x.second);
-    subnode.forced_off.pop_back();
-  }
 }
 
 }  // namespace murty_impl
@@ -298,8 +66,6 @@ std::vector<std::pair<double, Assignment>> solve(
     AssignmentMethod assign_f, Eigen::MatrixXd const &cost_matrix, int k_best,
     std::optional<double> min_cost, std::optional<double> max_cost,
     double infinity, double tol) {
-  using namespace murty_impl;
-
   // --- Input validation ---
   if (k_best < 1) {
     throw std::runtime_error("Error in murty::solve: k_best < 1");
@@ -379,6 +145,174 @@ std::vector<std::pair<double, Assignment>> solve(
     break;
   }
   return results;
+}
+
+/// \brief Returns an initial Node representing the
+/// unconstrained assignment problem
+///
+/// The initial Node has empty forced_on, forced_off,
+/// and sub_assignment, while unassigned_rows and unassigned_cols
+/// include all rows and columns in the cost_matrix.
+Node make_initial_node(Eigen::MatrixXd const &cost_matrix) {
+  Node node;
+  for (Index i = 0; i < cost_matrix.rows(); ++i) {
+    node.unassigned_rows.insert(i);
+  }
+  for (Index i = 0; i < cost_matrix.cols(); ++i) {
+    node.unassigned_cols.insert(i);
+  }
+  return node;
+}
+
+/// \brief Returns the full assignment
+///
+/// This combines forced_on and sub_assignment and copies
+/// the solution to a vector, under the assumption that
+/// all workers must be assigned.
+Assignment make_assignment(Node const &node) {
+  std::map<Index, Index> ordered = node.forced_on;
+  for (auto const &x : node.sub_assignment) {
+    ordered.emplace(x);
+  }
+  Assignment assignment;
+  for (auto const &x : ordered) {
+    assignment.push_back(x.second);
+  }
+  return assignment;
+}
+
+/// \brief Return the cost for a particular assignment
+double make_cost(Eigen::MatrixXd const &cost_matrix,
+                 Assignment const &assignment) {
+  double cost = 0.0;
+  for (Index i = 0; i < assignment.size(); ++i) {
+    cost += cost_matrix(i, assignment[i]);
+  }
+  return cost;
+}
+
+/// \brief Partition a Node, adding results to a multiset of Node
+///
+/// \param node_set A multiset of Node, sorted by ascending cost, containing
+///     suboptimal assignments, as constructed by Murty Algorithm partitioning
+/// \param assign_f Method used for calculating the best assignment
+/// \param cost_matrix The cost of assigning "worker" i to "task" j is
+///     cost_matrix(i,j)
+/// \param node Encodes the "current best" assignment
+/// \param infinity Cost used for "infinity", when an assignment is forced
+///     off
+/// \param tol Tolerance used for comparing costs
+///
+/// \returns A Node encoding the "next best" assignment
+void partition(std::multiset<Node> &node_set, AssignmentMethod assign_f,
+               Eigen::MatrixXd const &cost_matrix, Node const &node,
+               double infinity, double tol) {
+  using namespace murty_impl;
+  // node partitioning:
+  // - where node.sub_assignment == {x0, x1, x2, x3, ...}, xi={row,column}
+  // sub-node 0: {node.forced_on, node.forced_off + x0}
+  // sub-node 1: {node.forced_on + x0, node.forced_off + x1}
+  // sub-node 2: {node.forced_on + x0 + x1, node.forced_off + x2}
+  // sub-node 3: {node.forced_on + x0 + x1 + x2, node.forced_off + x3}
+  // ...
+
+  Node subnode = node;
+
+  // 'x' is a particular assignement {worker/row, task/column}
+  for (auto const &x : node.sub_assignment) {
+    subnode.forced_off.push_back(x);
+
+    double sub_assignment_cost;
+    std::tie(sub_assignment_cost, subnode.sub_assignment) = make_sub_assignment(
+        assign_f, cost_matrix, subnode.unassigned_rows, subnode.unassigned_cols,
+        subnode.forced_off, infinity, tol);
+
+    // handle failure to assign all "workers" (rows) by not saving the node
+    if (subnode.sub_assignment.size() + subnode.forced_on.size() ==
+        cost_matrix.rows()) {
+      subnode.cost =
+          sub_assignment_cost + make_forced_on_cost(cost_matrix, subnode);
+      node_set.insert(subnode);
+    }
+
+    subnode.forced_on.emplace(x);
+    if (subnode.forced_on.size() == cost_matrix.rows()) {
+      break;
+    }
+    subnode.unassigned_rows.erase(x.first);
+    subnode.unassigned_cols.erase(x.second);
+    subnode.forced_off.pop_back();
+  }
+}
+
+/// \brief Solve the assignment problem given certain assignments
+///    forced on and certain assignments forced off
+///
+/// \param assign_f Method used for calculating the best assignment
+/// \param cost_matrix The cost of assigning "worker" i to "task" j is
+///     cost_matrix(i,j). This is the original, full, cost_matrix.
+/// \param unassigned_rows Indices of "workers" (rows) not currently
+///     forced into a particular assignment.
+/// \param unassigned_rows Indices of "tasks" (columns) not currently
+///     forced into a particular assignment.
+/// \param forced_off Pairs of "workers" and "tasks" {row, column}
+///     which are forced to be not be part of the assignment solution.
+/// \param infinity Cost used for "infinity", when an assignment is forced
+///     off
+/// \param tol Tolerance used for comparing costs
+///
+/// \returns {sub_assignment_cost, sub_assignment}, where
+///     sub_assignment_cost is the cost of the sub_assignment only,
+///     and sub_assignment is the optimal assignment {row, column}
+///      of the sub cost matrix formed from the unassigned_rows and
+///     unassigned_cols of the cost matrix, given the constraints.
+///
+std::pair<double, std::map<Index, Index>> make_sub_assignment(
+    AssignmentMethod assign_f, Eigen::MatrixXd cost_matrix,
+    std::set<Index> const &unassigned_rows,
+    std::set<Index> const &unassigned_cols,
+    std::vector<std::pair<Index, Index>> const &forced_off, double infinity,
+    double tol) {
+  // --- Setup sub-assignment problem ---
+  Eigen::MatrixXd sub_cost_matrix(unassigned_rows.size(),
+                                  unassigned_cols.size());
+
+  // Use infinity cost for assignments that are forced off
+  for (auto const &pair : forced_off) {
+    cost_matrix(pair.first, pair.second) = infinity;
+  }
+
+  // Use original cost for assignments that are not forced off
+  Index row = 0;
+  for (Index full_matrix_row : unassigned_rows) {
+    Index col = 0;
+    for (Index full_matrix_col : unassigned_cols) {
+      sub_cost_matrix(row, col) = cost_matrix(full_matrix_row, full_matrix_col);
+      ++col;
+    }
+    ++row;
+  }
+
+  // --- Solve sub-assignment problem ---
+  std::pair<double, Assignment> tmp = assign_f(sub_cost_matrix, infinity, tol);
+  std::pair<double, std::map<Index, Index>> result;
+  result.first = tmp.first;
+
+  // If cost is >= infinity...
+  // no solution that doesn't include forced_off assignment
+  if (result.first > infinity - tol) {
+    return result;
+  }
+
+  // --- Convert sub-problem indices to full-problem indices ---
+  auto unassigned_rows_it = unassigned_rows.begin();
+  std::vector<Index> unassigned_cols_vec{unassigned_cols.begin(),
+                                         unassigned_cols.end()};
+  for (Index n : tmp.second) {
+    result.second.emplace(*unassigned_rows_it, unassigned_cols_vec[n]);
+    ++unassigned_rows_it;
+  }
+  return result;
 }
 
 }  // namespace murty

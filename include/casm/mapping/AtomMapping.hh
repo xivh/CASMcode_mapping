@@ -15,12 +15,11 @@ namespace mapping {
 struct AtomMapping {
   AtomMapping(Eigen::MatrixXd const &_displacement,
               std::vector<Index> const &_permutation,
-              Eigen::Vector3d const &_translation, bool _time_reversal);
+              Eigen::Vector3d const &_translation);
 
   Eigen::MatrixXd displacement;
   std::vector<Index> permutation;
   Eigen::Vector3d translation;
-  bool time_reversal;
 };
 
 }  // namespace mapping
