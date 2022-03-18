@@ -183,5 +183,64 @@ std::vector<std::pair<StructureMappingCost, StructureMapping>> map_structures(
   return results;
 }
 
+/// \brief Find structure mappings, given a range of parent superstructure
+/// volumes
+///
+/// This method finds mappings from a superstructure of a reference "parent"
+/// structure to a "child" structure. It works by finding lattice mappings
+/// (see `LatticeMapping`) for symmetrically unique superlattices of the
+/// "parent" lattice for a range of supercell volumes, and for each
+/// potential lattice mapping finding atom mappings (see `AtomMapping`).
+///
+/// The total structure mapping cost, total_cost, is a weighted mixture of
+/// the lattice mapping cost, lattice_cost, and the atom mapping cost,
+/// atom_cost:
+///
+///     total_cost = lattice_cost_weight*lattice_cost
+///                  + (1.0 - lattice_cost_weight)*atom_cost
+///
+/// where lattice_cost_weight is an input parameter.
+///
+/// For strain and atom cost definitions, see Python documentation.
+///
+/// For more details, see J.C. Thomas, A.R. Natarajan, and A.V. Van der Ven,
+/// npj Computational Materials (2021)7:164;
+/// https://doi.org/10.1038/s41524-021-00627-0
+///
+/// \param prim The reference "parent" structure
+/// \param structure2 The "child" structure
+/// \param max_vol The maximum parent superstructure volume to consider, as
+///     a multiple of the parent structure volume
+/// \param prim_factor_group Used to skip mappings that are
+///     symmetrically equivalent mappings. The default (empty), is
+///     equivalent to only including the identity operation.
+/// \param structure2_factor_group Used to skip mappings that are
+///     symmetrically equivalent mappings. The default (empty), is
+///     equivalent to only including the identity operation.
+/// \param min_vol The minimum parent superstructure volume to consider, as
+///     a multiple of the parent structure volume. Default=1.
+/// \param min_cost Keep results with total cost >= min_cost
+/// \param max_cost Keep results with total cost <= max_cost
+/// \param lattice_cost_weight The fraction of the total cost due to
+///     the lattice strain cost. The remaining fraction
+///     (1.-lattice_cost_weight) is due to the atom cost. Default=0.5.
+/// \param strain_cost_method One of "isotropic_strain_cost" or
+///     "symmetry_breaking_strain_cost"
+/// \param atom_cost_method One of "isotropic_atom_cost" or
+///     "symmetry_breaking_atom_cost"
+/// \param k_best Keep the k_best results satisfying the min_cost and
+///     max_cost constraints. If there are approximate ties, those
+///     will also be kept.
+/// \param cost_tol Tolerance for checking if lattice mapping costs are
+///     approximately equal
+std::vector<std::pair<StructureMappingCost, StructureMapping>>
+map_structures_v2(xtal::BasicStructure const &prim,
+                  xtal::SimpleStructure const &structure2, Index max_vol,
+                  std::vector<xtal::SymOp> prim_factor_group,
+                  std::vector<xtal::SymOp> structure2_factor_group,
+                  Index min_vol, double min_cost, double max_cost,
+                  double lattice_cost_weight, std::string strain_cost_method,
+                  std::string atom_cost_method, int k_best, double cost_tol) {}
+
 }  // namespace mapping
 }  // namespace CASM

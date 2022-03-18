@@ -22,25 +22,25 @@ struct MappingNode {
   /// \brief Constructor
   MappingNode(
       double _lattice_cost,
-      std::shared_ptr<LatticeMappingSearchData> const &_lattice_mapping_data,
+      std::shared_ptr<LatticeMappingSearchData const> _lattice_mapping_data,
       double _atom_cost,
-      std::shared_ptr<AtomMappingSearchData> const &_atom_mapping_data,
-      murty::Node const &_assignment_node, AtomMapping const &_atom_mapping,
+      std::shared_ptr<AtomMappingSearchData const> _atom_mapping_data,
+      murty::Node _assignment_node, AtomMapping _atom_mapping,
       double _total_cost);
 
   /// \brief The lattice mapping cost
-  double lattice_cost;
+  double const lattice_cost;
 
   /// \brief Holds lattice mapping-specific data used
   ///     for mapping searches
-  std::shared_ptr<LatticeMappingSearchData> lattice_mapping_data;
+  std::shared_ptr<LatticeMappingSearchData const> const lattice_mapping_data;
 
   /// \brief The atom mapping cost
-  double atom_cost;
+  double const atom_cost;
 
   /// \brief Data that can be used for all atom mappings with the
   ///     same lattice mapping and trial translation
-  std::shared_ptr<AtomMappingSearchData> atom_mapping_data;
+  std::shared_ptr<AtomMappingSearchData const> const atom_mapping_data;
 
   /// \brief Encodes a constrained solution to the atom-to-site
   ///     assignment problem
@@ -49,7 +49,7 @@ struct MappingNode {
   /// on and forced off) to continue searching for suboptimal
   /// assignments. When solved, the sub-assignment problem is
   /// stored in assignment_node.sub_assignment.
-  murty::Node assignment_node;
+  murty::Node const assignment_node;
 
   /// \brief AtomMapping solution obtained from assignment_node
   ///
@@ -60,10 +60,10 @@ struct MappingNode {
   ///   atom_mapping_data
   /// - the constrained assignment problem solution stored in
   ///   assignment_node
-  AtomMapping atom_mapping;
+  AtomMapping const atom_mapping;
 
   /// \brief The total mapping cost
-  double total_cost;
+  double const total_cost;
 
   /// \brief Compare by total_cost only
   bool operator<(MappingNode const &rhs) const {
@@ -134,30 +134,28 @@ struct MappingSearch {
 
   double make_total_cost(double lattice_cost, double atom_cost) const;
 
-  bool is_allowed_cost(double cost) const;
-
   /// \brief Make a new MappingNode from an assignment problem node
   ///     with a solved sub_assignment
   MappingNode make_mapping_node_from_assignment_node(
-      murty::Node const &assignment_node, double lattice_cost,
-      std::shared_ptr<LatticeMappingSearchData> const &lattice_mapping_data,
-      std::shared_ptr<AtomMappingSearchData> const &atom_mapping_data);
+      murty::Node assignment_node, double lattice_cost,
+      std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
+      std::shared_ptr<AtomMappingSearchData const> atom_mapping_data);
 
   /// \brief Insert mapping node into this->queue & this->results,
-  ///     maintaing k-best results
-  std::multiset<MappingNode>::iterator insert(MappingNode const &mapping_node);
+  ///     maintaining k-best results
+  std::multiset<MappingNode>::iterator insert(MappingNode mapping_node);
 
   /// \brief Make assignment and insert mapping node
-  ///     into this->queue & this->results, maintaing k-best results
+  ///     into this->queue & this->results, maintaining k-best results
   std::multiset<MappingNode>::iterator make_and_insert_mapping_node(
       double lattice_cost,
-      std::shared_ptr<LatticeMappingSearchData> const &lattice_mapping_data,
-      std::shared_ptr<AtomMappingSearchData> const &atom_mapping_data,
-      std::map<Index, Index> const &forced_on = {},
-      std::vector<std::pair<Index, Index>> const &forced_off = {});
+      std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
+      std::shared_ptr<AtomMappingSearchData const> atom_mapping_data,
+      std::map<Index, Index> forced_on = {},
+      std::vector<std::pair<Index, Index>> forced_off = {});
 
   /// \brief Make the next level of sub-optimal assignments and
-  ///     inserts them into this->queue & this->results, maintaing
+  ///     inserts them into this->queue & this->results, maintaining
   ///     k-best results
   std::vector<std::multiset<MappingNode>::iterator> partition(
       MappingNode const &node);

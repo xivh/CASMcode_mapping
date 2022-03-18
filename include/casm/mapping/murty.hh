@@ -9,7 +9,6 @@
 
 #include "casm/global/definitions.hh"
 #include "casm/global/eigen.hh"
-#include "casm/misc/Comparisons.hh"
 
 namespace CASM {
 namespace mapping {
@@ -51,12 +50,12 @@ std::vector<std::pair<double, Assignment>> solve(
 /// The Node forces some assignments (i,j) "on" (assignment is
 /// made in all solutions considered) and some assignments (i,j)
 /// "off" (cost is set to infinity so assignment is never made).
-/// The unassigned rows and columns are stored for convenience, and
+/// The unassigned rows and columns are stored for efficiency, and
 /// the assignment of those rows and columns can be stored in
 /// `sub_assignment` when the constrained problem is solved. The
 /// final, full assignment can be constructed by combining
 /// `forced_on` and `sub_assignment`.
-struct Node : public Comparisons<CRTPBase<Node>> {
+struct Node {
   /// \brief Map of which row (the key) is assigned to
   /// which column (the value)
   std::map<Index, Index> forced_on;
@@ -83,9 +82,10 @@ struct Node : public Comparisons<CRTPBase<Node>> {
   bool operator<(Node const &rhs) const { return this->cost < rhs.cost; }
 };
 
-/// \brief Returns an initial Node representing the
-/// unconstrained assignment problem
-Node make_initial_node(Eigen::MatrixXd const &cost_matrix);
+/// \brief Returns a Node representing the (constrained) assignment problem
+Node make_node(Eigen::MatrixXd const &cost_matrix,
+               std::map<Index, Index> forced_on = {},
+               std::vector<std::pair<Index, Index>> forced_off = {});
 
 /// \brief Returns the full assignment
 Assignment make_assignment(Node const &node);

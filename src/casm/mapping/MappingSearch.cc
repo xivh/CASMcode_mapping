@@ -95,17 +95,16 @@ AtomMapping make_atom_mapping_from_assignment(
 /// \brief Constructor
 MappingNode::MappingNode(
     double _lattice_cost,
-    std::shared_ptr<LatticeMappingSearchData> const &_lattice_mapping_data,
+    std::shared_ptr<LatticeMappingSearchData const> _lattice_mapping_data,
     double _atom_cost,
-    std::shared_ptr<AtomMappingSearchData> const &_atom_mapping_data,
-    murty::Node const &_assignment_node, AtomMapping const &_atom_mapping,
-    double _total_cost)
+    std::shared_ptr<AtomMappingSearchData const> _atom_mapping_data,
+    murty::Node _assignment_node, AtomMapping _atom_mapping, double _total_cost)
     : lattice_cost(_lattice_cost),
-      lattice_mapping_data(_lattice_mapping_data),
+      lattice_mapping_data(std::move(_lattice_mapping_data)),
       atom_cost(_atom_cost),
-      atom_mapping_data(_atom_mapping_data),
-      assignment_node(_assignment_node),
-      atom_mapping(_atom_mapping),
+      atom_mapping_data(std::move(_atom_mapping_data)),
+      assignment_node(std::move(_assignment_node)),
+      atom_mapping(std::move(_atom_mapping)),
       total_cost(_total_cost) {}
 
 /// \struct MappingSearch
@@ -209,14 +208,6 @@ double MappingSearch::make_total_cost(double lattice_cost,
          (1. - this->lattice_cost_weight) * atom_cost;
 };
 
-bool MappingSearch::is_allowed_cost(double cost) const {
-  if (cost > (this->min_cost - this->cost_tol) &&
-      cost < (this->max_cost + this->cost_tol)) {
-    return true;
-  }
-  return false;
-}
-
 /// \brief Make a new MappingNode from an assignment problem node
 ///     with a solved sub_assignment
 ///
@@ -226,9 +217,9 @@ bool MappingSearch::is_allowed_cost(double cost) const {
 /// the atom_cost and total_cost using the parameters specified
 /// at MappingSearch construction time.
 MappingNode MappingSearch::make_mapping_node_from_assignment_node(
-    murty::Node const &assignment_node, double lattice_cost,
-    std::shared_ptr<LatticeMappingSearchData> const &lattice_mapping_data,
-    std::shared_ptr<AtomMappingSearchData> const &atom_mapping_data) {
+    murty::Node assignment_node, double lattice_cost,
+    std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
+    std::shared_ptr<AtomMappingSearchData const> atom_mapping_data) {
   AtomMapping atom_mapping = mapping_impl::make_atom_mapping_from_assignment(
       murty::make_assignment(assignment_node),
       atom_mapping_data->site_displacements,
@@ -237,13 +228,13 @@ MappingNode MappingSearch::make_mapping_node_from_assignment_node(
   double atom_cost =
       this->make_atom_cost(atom_mapping.displacement, *lattice_mapping_data);
   double total_cost = this->make_total_cost(lattice_cost, atom_cost);
-  return MappingNode(lattice_cost, lattice_mapping_data, atom_cost,
-                     atom_mapping_data, assignment_node, atom_mapping,
-                     total_cost);
+  return MappingNode(lattice_cost, std::move(lattice_mapping_data), atom_cost,
+                     std::move(atom_mapping_data), std::move(assignment_node),
+                     std::move(atom_mapping), total_cost);
 }
 
-/// \brief Make assignment and insert mapping node
-///     into this->queue & this->results
+/// \brief Insert mapping node into this->queue & this->results,
+///     maintaining k-best results
 ///
 /// A MappingNode is inserted into this->queue (always!), and then
 /// inserted into this->results if it satisfies the min/max cost
@@ -255,36 +246,32 @@ MappingNode MappingSearch::make_mapping_node_from_assignment_node(
 /// \returns Iterator to MappingNode in queue
 ///
 std::multiset<MappingNode>::iterator MappingSearch::insert(
-    MappingNode const &mapping_node) {
-  // TODO: inside or outside of the cost range check? Not clear if atom_cost is
-  // always strictly greater than the hungarion_method cost
-  std::multiset<MappingNode>::iterator result =
-      this->queue.insert(mapping_node);
+    MappingNode mapping_node) {
+  std::multiset<MappingNode>::iterator it =
+      this->queue.insert(std::move(mapping_node));
 
   // --- maintain k_best results, keeping ties in overflow ---
   // note: max_cost is modified by `maintain_k_best_results` to shrink
   // to the current k_best-th cost once k_best results are found
-  if (this->is_allowed_cost(mapping_node.total_cost)) {
+  if (it->total_cost > (this->min_cost - this->cost_tol)) {
     if (results.size() < k_best ||
-        mapping_node.total_cost < this->max_cost + this->cost_tol) {
+        it->total_cost < this->max_cost + this->cost_tol) {
       this->results.emplace(
-          StructureMappingCost(mapping_node.lattice_cost,
-                               mapping_node.atom_cost, mapping_node.total_cost),
-          StructureMapping(
-              mapping_node.lattice_mapping_data->prim_data->shared_prim,
-              mapping_node.lattice_mapping_data->lattice_mapping,
-              mapping_node.atom_mapping));
+          StructureMappingCost(it->lattice_cost, it->atom_cost, it->total_cost),
+          StructureMapping(it->lattice_mapping_data->prim_data->shared_prim,
+                           it->lattice_mapping_data->lattice_mapping,
+                           it->atom_mapping));
       mapping::maintain_k_best_results(
           this->k_best, this->cost_tol, this->results, this->overflow,
           [](StructureMappingCost const &key) { return key.total_cost; });
     }
   }
 
-  return result;
+  return it;
 }
 
 /// \brief Make assignment and insert mapping node
-///     into this->queue & this->results
+///     into this->queue & this->results, maintaining k-best results
 ///
 /// The (constrained) assignment problem is solved in context of
 /// a particular lattice mapping and trial translation, and
@@ -310,19 +297,14 @@ std::multiset<MappingNode>::iterator MappingSearch::insert(
 std::multiset<MappingNode>::iterator
 MappingSearch::make_and_insert_mapping_node(
     double lattice_cost,
-    std::shared_ptr<LatticeMappingSearchData> const &lattice_mapping_data,
-    std::shared_ptr<AtomMappingSearchData> const &atom_mapping_data,
-    std::map<Index, Index> const &forced_on,
-    std::vector<std::pair<Index, Index>> const &forced_off) {
+    std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
+    std::shared_ptr<AtomMappingSearchData const> atom_mapping_data,
+    std::map<Index, Index> forced_on,
+    std::vector<std::pair<Index, Index>> forced_off) {
   // --- Find optimal assignment ---
   murty::Node assignment_node =
-      murty::make_initial_node(atom_mapping_data->cost_matrix);
-  for (auto const &pair : forced_on) {
-    assignment_node.unassigned_rows.erase(pair.first);
-    assignment_node.unassigned_cols.erase(pair.second);
-  }
-  assignment_node.forced_on = forced_on;
-  assignment_node.forced_off = forced_off;
+      murty::make_node(atom_mapping_data->cost_matrix, std::move(forced_on),
+                       std::move(forced_off));
   std::tie(assignment_node.cost, assignment_node.sub_assignment) =
       murty::make_sub_assignment(
           hungarian::solve, atom_mapping_data->cost_matrix,
@@ -331,15 +313,16 @@ MappingSearch::make_and_insert_mapping_node(
 
   // --- Make mapping node from assignment solution ---
   MappingNode mapping_node = this->make_mapping_node_from_assignment_node(
-      assignment_node, lattice_cost, lattice_mapping_data, atom_mapping_data);
+      std::move(assignment_node), lattice_cost, std::move(lattice_mapping_data),
+      atom_mapping_data);
 
   // --- Insert mapping node in queue and results, return queue iterator ---
-  std::multiset<MappingNode>::iterator result = this->insert(mapping_node);
-  return result;
+  return this->insert(std::move(mapping_node));
 }
 
 /// \brief Make the next level of sub-optimal assignments and
-///     inserts them into this->queue & this->results
+///     inserts them into this->queue & this->results, maintaining
+///     k-best results
 ///
 /// The Murty algorithm is used to generate sub-optimal assignments
 /// from a previous assignment solution. The resulting MappingNode
@@ -355,20 +338,24 @@ MappingSearch::make_and_insert_mapping_node(
 std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition(
     MappingNode const &node) {
   // -- Make the next level of sub-optimal assignment solutions ---
-  std::multiset<murty::Node> sub_optimal_assignment_nodes;
-  murty::partition(sub_optimal_assignment_nodes, hungarian::solve,
-                   node.atom_mapping_data->cost_matrix, node.assignment_node,
-                   this->infinity, this->cost_tol);
+  std::multiset<murty::Node> s;
+  murty::partition(s, hungarian::solve, node.atom_mapping_data->cost_matrix,
+                   node.assignment_node, this->infinity, this->cost_tol);
 
+  // The sub-optimal assignment solutions are in 's',
+  // and we want them to all end up in MappingNode.
+  // This loop extracts the values from 's', uses them to
+  // construct MappingNode, and continues until they are
+  // all extracted.
   std::vector<std::multiset<MappingNode>::iterator> result;
-  for (auto const &sub_optimal_assignment_node : sub_optimal_assignment_nodes) {
+  while (s.size()) {
     // --- Make mapping node from sub-optimal assignment ---
     MappingNode mapping_node = this->make_mapping_node_from_assignment_node(
-        sub_optimal_assignment_node, node.lattice_cost,
+        std::move(s.extract(s.begin()).value()), node.lattice_cost,
         node.lattice_mapping_data, node.atom_mapping_data);
 
     // --- Insert mapping node in queue and results, return queue iterator ---
-    result.emplace_back(this->insert(mapping_node));
+    result.emplace_back(this->insert(std::move(mapping_node)));
   }
 
   return result;

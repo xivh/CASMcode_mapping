@@ -21,6 +21,39 @@ Eigen::MatrixXd make_site_coordinate_cart(xtal::BasicStructure const &prim) {
   return prim_site_coordinate_cart;
 }
 
+/// \brief Return supercell site coordinates as columns of
+///     a shape=(3, N_supercell_site) matrix
+Eigen::MatrixXd make_supercell_site_coordinate_cart(
+    xtal::UnitCellCoordIndexConverter const &unitcellcoord_index_converter,
+    Eigen::MatrixXd const &prim_site_coordinate_cart,
+    xtal::Lattice const &prim_lattice) {
+  Index N_supercell_site = unitcellcoord_index_converter.total_sites();
+  Eigen::MatrixXd supercell_site_coordinate_cart(3, N_supercell_site);
+  for (Index l = 0; l < N_supercell_site; ++l) {
+    xtal::UnitCellCoord const &uccoord = unitcellcoord_index_converter(l);
+    Index b = uccoord.sublattice();
+    xtal::UnitCell const &ijk = uccoord.unitcell();
+    supercell_site_coordinate_cart.col(l) =
+        prim_site_coordinate_cart.col(b) +
+        prim_lattice.lat_column_mat() * ijk.cast<double>();
+  }
+  return supercell_site_coordinate_cart;
+}
+
+/// \brief Return allowed atom types on each supercell site
+std::vector<std::vector<std::string>> make_supercell_allowed_atom_types(
+    xtal::UnitCellCoordIndexConverter const &unitcellcoord_index_converter,
+    std::vector<std::vector<std::string>> const &prim_allowed_atom_types) {
+  Index N_supercell_site = unitcellcoord_index_converter.total_sites();
+  std::vector<std::vector<std::string>> supercell_allowed_atom_types;
+  for (Index l = 0; l < N_supercell_site; ++l) {
+    xtal::UnitCellCoord const &uccoord = unitcellcoord_index_converter(l);
+    Index b = uccoord.sublattice();
+    supercell_allowed_atom_types.push_back(prim_allowed_atom_types[b]);
+  }
+  return supercell_allowed_atom_types;
+}
+
 /// \brief Return minimum length displacement (atom_cart - site_cart),
 ///     accounting for periodic boundary conditions with a "fast" method
 ///     which may not find the minimum pbc distance in all cases.
@@ -226,8 +259,7 @@ std::vector<Eigen::Vector3d> make_trial_translations(
 /// \param trial_translation A translation applied to atom coordinates to
 ///     bring the atoms and sites into alignment.
 ///
-void make_site_displacements(
-    std::vector<std::vector<Eigen::Vector3d>> &site_displacements,
+std::vector<std::vector<Eigen::Vector3d>> make_site_displacements(
     xtal::Lattice const &lattice,
     Eigen::MatrixXd const &supercell_site_coordinate_cart,
     Eigen::MatrixXd const &atom_coordinate_cart_in_supercell,
@@ -243,6 +275,7 @@ void make_site_displacements(
   Index N_atom = atom_coordinate_cart_in_supercell.cols();
   Index N_site = supercell_site_coordinate_cart.cols();
 
+  std::vector<std::vector<Eigen::Vector3d>> site_displacements;
   site_displacements.resize(N_site);
   for (auto &v : site_displacements) {
     v.resize(N_atom);
@@ -256,6 +289,7 @@ void make_site_displacements(
               trial_translation);
     }
   }
+  return site_displacements;
 }
 
 /// \brief Calculate elements of the cost matrix
@@ -290,8 +324,8 @@ void make_site_displacements(
 /// \param allowed_atom_types The atom types allowed on each site
 /// \param infinity The value to use for unallowed mappings
 ///
-void make_cost_matrix(
-    Eigen::MatrixXd &cost_matrix, AtomMappingCostFunction f,
+Eigen::MatrixXd make_cost_matrix(
+    AtomMappingCostFunction f,
     std::vector<std::vector<Eigen::Vector3d>> const &site_displacements,
     std::vector<std::string> const &atom_type,
     std::vector<std::vector<std::string>> const &allowed_atom_types,
@@ -313,7 +347,7 @@ void make_cost_matrix(
   Index N_site = allowed_atom_types.size();
   Index N_atom = atom_type.size();
 
-  cost_matrix.resize(N_site, N_site);
+  Eigen::MatrixXd cost_matrix(N_site, N_site);
 
   // make cost matrix: use cost_matrix(site_index, atom_index)
   // to match AtomMapping permutation convention
@@ -332,6 +366,8 @@ void make_cost_matrix(
             infinity);
     }
   }
+
+  return cost_matrix;
 }
 
 }  // namespace mapping_impl
@@ -353,20 +389,20 @@ void make_cost_matrix(
 ///     equivalent to only including the identity operation.
 StructureSearchData::StructureSearchData(
     xtal::Lattice const &_lattice, Eigen::MatrixXd const &_atom_coordinate_cart,
-    std::vector<std::string> const &_atom_type,
+    std::vector<std::string> _atom_type,
     std::vector<xtal::SymOp> _structure_factor_group)
     : lattice(_lattice),
       N_atom(_atom_coordinate_cart.cols()),
       atom_coordinate_cart(_atom_coordinate_cart),
-      atom_type(_atom_type),
-      structure_factor_group(std::move(_structure_factor_group)) {
+      atom_type(std::move(_atom_type)),
+      structure_factor_group(
+          _structure_factor_group.empty()
+              ? std::vector<xtal::SymOp>({xtal::SymOp::identity()})
+              : std::move(_structure_factor_group)) {
   if (atom_type.size() != atom_coordinate_cart.cols()) {
     throw std::runtime_error(
         "Error in StructureSearchData: atom_type.size() != "
         "atom_coordinate_cart.cols()");
-  }
-  if (structure_factor_group.empty()) {
-    structure_factor_group.push_back(xtal::SymOp::identity());
   }
 }
 
@@ -385,16 +421,28 @@ StructureSearchData::StructureSearchData(
 ///     displacement modes required for the calculation. It will
 ///     use the provided prim_factor_group.
 PrimSearchData::PrimSearchData(
-    std::shared_ptr<xtal::BasicStructure const> const &_shared_prim,
+    std::shared_ptr<xtal::BasicStructure const> _shared_prim,
     std::vector<xtal::SymOp> _prim_factor_group,
     bool make_prim_sym_invariant_displacement_modes)
-    : shared_prim(_shared_prim),
+    : shared_prim(std::move(_shared_prim)),
       prim_lattice(shared_prim->lattice()),
+      N_prim_site(shared_prim->basis().size()),
       prim_site_coordinate_cart(
           mapping_impl::make_site_coordinate_cart(*shared_prim)),
       prim_allowed_atom_types(xtal::allowed_molecule_names(*shared_prim)),
       vacancies_allowed(shared_prim->max_possible_vacancies()),
-      prim_factor_group(std::move(_prim_factor_group)) {
+      prim_factor_group(
+          _prim_factor_group.empty()
+              ? std::vector<xtal::SymOp>({xtal::SymOp::identity()})
+              : std::move(_prim_factor_group)),
+      prim_sym_invariant_displacement_modes(
+          make_prim_sym_invariant_displacement_modes
+              ? std::optional<std::vector<Eigen::MatrixXd>>(
+                    xtal::generate_invariant_shuffle_modes(
+                        prim_factor_group,
+                        xtal::make_permutation_representation(
+                            *shared_prim, prim_factor_group)))
+              : std::optional<std::vector<Eigen::MatrixXd>>()) {
   // Validation
   for (xtal::Site const &site : shared_prim->basis()) {
     for (xtal::Molecule const &mol : site.occupant_dof()) {
@@ -404,18 +452,6 @@ PrimSearchData::PrimSearchData(
             "supported");
       }
     }
-  }
-
-  if (prim_factor_group.empty()) {
-    prim_factor_group.push_back(xtal::SymOp::identity());
-  }
-
-  if (make_prim_sym_invariant_displacement_modes) {
-    auto prim_permute_group =
-        xtal::make_permutation_representation(*shared_prim, prim_factor_group);
-    prim_sym_invariant_displacement_modes =
-        xtal::generate_invariant_shuffle_modes(prim_factor_group,
-                                               prim_permute_group);
   }
 }
 
@@ -429,12 +465,12 @@ PrimSearchData::PrimSearchData(
 ///     the lattice of a superstructure of the prim
 ///     to the lattice of the structure being mapped
 LatticeMappingSearchData::LatticeMappingSearchData(
-    std::shared_ptr<PrimSearchData> _prim_data,
-    std::shared_ptr<StructureSearchData> _structure_data,
-    LatticeMapping const &_lattice_mapping)
-    : prim_data(_prim_data),
-      structure_data(_structure_data),
-      lattice_mapping(_lattice_mapping),
+    std::shared_ptr<PrimSearchData const> _prim_data,
+    std::shared_ptr<StructureSearchData const> _structure_data,
+    LatticeMapping _lattice_mapping)
+    : prim_data(std::move(_prim_data)),
+      structure_data(std::move(_structure_data)),
+      lattice_mapping(std::move(_lattice_mapping)),
       transformation_matrix_to_super(
           lround(lattice_mapping.transformation_matrix_to_super *
                  lattice_mapping.reorientation)),
@@ -445,20 +481,15 @@ LatticeMappingSearchData::LatticeMappingSearchData(
       N_supercell_site(unitcellcoord_index_converter.total_sites()),
       atom_coordinate_cart_in_supercell(
           lattice_mapping.deformation_gradient.inverse() *
-          structure_data->atom_coordinate_cart) {
-  // --- Make supercell_site_coordinate_cart & supercell_allowed_atom_types
-  supercell_site_coordinate_cart.resize(3, N_supercell_site);
-  for (Index l = 0; l < N_supercell_site; ++l) {
-    xtal::UnitCellCoord const &uccoord = unitcellcoord_index_converter(l);
-    Index b = uccoord.sublattice();
-    xtal::UnitCell const &ijk = uccoord.unitcell();
-    supercell_site_coordinate_cart.col(l) =
-        prim_data->prim_site_coordinate_cart.col(b) +
-        prim_data->prim_lattice.lat_column_mat() * ijk.cast<double>();
-    supercell_allowed_atom_types.push_back(
-        prim_data->prim_allowed_atom_types[b]);
-  }
-}
+          structure_data->atom_coordinate_cart),
+      supercell_site_coordinate_cart(
+          mapping_impl::make_supercell_site_coordinate_cart(
+              unitcellcoord_index_converter,
+              prim_data->prim_site_coordinate_cart, prim_data->prim_lattice)),
+      supercell_allowed_atom_types(
+          mapping_impl::make_supercell_allowed_atom_types(
+              unitcellcoord_index_converter,
+              prim_data->prim_allowed_atom_types)) {}
 
 /// \brief Make possible atom -> site translations to bring atoms into
 ///     registry with the sites.
@@ -543,22 +574,20 @@ double make_atom_mapping_cost(
 ///     cost matrix when a particular assignment is not
 ///     allowed.
 AtomMappingSearchData::AtomMappingSearchData(
-    std::shared_ptr<LatticeMappingSearchData> _lattice_mapping_data,
+    std::shared_ptr<LatticeMappingSearchData const> _lattice_mapping_data,
     Eigen::Vector3d const &_trial_translation_cart,
     AtomMappingCostFunction _atom_mapping_cost_f, double _infinity)
-    : lattice_mapping_data(_lattice_mapping_data),
-      trial_translation_cart(_trial_translation_cart) {
-  mapping_impl::make_site_displacements(
-      site_displacements, lattice_mapping_data->supercell_lattice,
-      lattice_mapping_data->supercell_site_coordinate_cart,
-      lattice_mapping_data->atom_coordinate_cart_in_supercell,
-      trial_translation_cart);
-
-  mapping_impl::make_cost_matrix(
-      cost_matrix, _atom_mapping_cost_f, site_displacements,
-      lattice_mapping_data->structure_data->atom_type,
-      lattice_mapping_data->supercell_allowed_atom_types, _infinity);
-}
+    : lattice_mapping_data(std::move(_lattice_mapping_data)),
+      trial_translation_cart(_trial_translation_cart),
+      site_displacements(mapping_impl::make_site_displacements(
+          lattice_mapping_data->supercell_lattice,
+          lattice_mapping_data->supercell_site_coordinate_cart,
+          lattice_mapping_data->atom_coordinate_cart_in_supercell,
+          trial_translation_cart)),
+      cost_matrix(mapping_impl::make_cost_matrix(
+          _atom_mapping_cost_f, site_displacements,
+          lattice_mapping_data->structure_data->atom_type,
+          lattice_mapping_data->supercell_allowed_atom_types, _infinity)) {}
 
 }  // namespace mapping
 }  // namespace CASM

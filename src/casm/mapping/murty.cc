@@ -92,7 +92,7 @@ std::vector<std::pair<double, Assignment>> solve(
   std::vector<std::pair<double, Assignment>> results;
 
   // --- Find optimal assignment ---
-  Node optimal_node = make_initial_node(cost_matrix);
+  Node optimal_node = make_node(cost_matrix);
   std::tie(optimal_node.cost, optimal_node.sub_assignment) =
       make_sub_assignment(assign_f, cost_matrix, optimal_node.unassigned_rows,
                           optimal_node.unassigned_cols, optimal_node.forced_off,
@@ -147,13 +147,20 @@ std::vector<std::pair<double, Assignment>> solve(
   return results;
 }
 
-/// \brief Returns an initial Node representing the
-/// unconstrained assignment problem
+/// \brief Returns a Node representing the (constrained) assignment problem
 ///
-/// The initial Node has empty forced_on, forced_off,
-/// and sub_assignment, while unassigned_rows and unassigned_cols
-/// include all rows and columns in the cost_matrix.
-Node make_initial_node(Eigen::MatrixXd const &cost_matrix) {
+/// \param cost_matrix The cost matrix for the assignement problem
+/// \param forced_on A map of indicies of {row, column} of
+///     assignments that are forced on
+/// \param forced_off A vector of indicies of {row, column} of
+///     assignments that are forced off (given infinity cost)
+///
+/// \returns node The resulting Node has default initialized sub_assignment
+///     and cost, while unassigned_rows and unassigned_cols are set to be
+///     consistent with forced_on.
+Node make_node(Eigen::MatrixXd const &cost_matrix,
+               std::map<Index, Index> forced_on,
+               std::vector<std::pair<Index, Index>> forced_off) {
   Node node;
   for (Index i = 0; i < cost_matrix.rows(); ++i) {
     node.unassigned_rows.insert(i);
@@ -161,6 +168,13 @@ Node make_initial_node(Eigen::MatrixXd const &cost_matrix) {
   for (Index i = 0; i < cost_matrix.cols(); ++i) {
     node.unassigned_cols.insert(i);
   }
+  for (auto const &pair : forced_on) {
+    node.unassigned_rows.erase(pair.first);
+    node.unassigned_cols.erase(pair.second);
+  }
+  node.forced_on = std::move(forced_on);
+  node.forced_off = std::move(forced_off);
+
   return node;
 }
 

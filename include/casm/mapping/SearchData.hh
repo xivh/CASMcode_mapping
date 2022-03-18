@@ -38,58 +38,58 @@ struct StructureSearchData {
   /// \brief Constructor
   StructureSearchData(xtal::Lattice const &_lattice,
                       Eigen::MatrixXd const &_atom_coordinate_cart,
-                      std::vector<std::string> const &_atom_type,
+                      std::vector<std::string> _atom_type,
                       std::vector<xtal::SymOp> _structure_factor_group =
                           std::vector<xtal::SymOp>{});
 
   /// \brief The structure's lattice
-  xtal::Lattice lattice;
+  xtal::Lattice const lattice;
 
   /// \brief The number of atoms (includes explicitly included vacancies)
-  Index N_atom;
+  Index const N_atom;
 
   /// \brief Shape=(3,N_atom), with Cartesian coordinates of atoms as columns
-  Eigen::MatrixXd atom_coordinate_cart;
+  Eigen::MatrixXd const atom_coordinate_cart;
 
   /// \brief Size=N_atom, with the name of the atom at each site
-  std::vector<std::string> atom_type;
+  std::vector<std::string> const atom_type;
 
   /// \brief Symmetry operations that may be used to skip symmetrically
   ///     equivalent mappings
-  std::vector<xtal::SymOp> structure_factor_group;
+  std::vector<xtal::SymOp> const structure_factor_group;
 };
 
 /// \brief Holds prim-related data used for mapping searches
 struct PrimSearchData {
   /// \brief Constructor
   PrimSearchData(
-      std::shared_ptr<xtal::BasicStructure const> const &_shared_prim,
+      std::shared_ptr<xtal::BasicStructure const> _shared_prim,
       std::vector<xtal::SymOp> _prim_factor_group = std::vector<xtal::SymOp>{},
       bool make_prim_sym_invariant_displacement_modes = true);
 
   /// \brief The prim
-  std::shared_ptr<xtal::BasicStructure const> shared_prim;
+  std::shared_ptr<xtal::BasicStructure const> const shared_prim;
 
   /// \brief The prim lattice
-  xtal::Lattice prim_lattice;
+  xtal::Lattice const prim_lattice;
 
   /// \brief The number of prim sites
-  Index N_prim_site;
+  Index const N_prim_site;
 
   /// \brief Shape=(3,N_prim_site), with prim site Cartesian
   ///     coordinates as columns
-  Eigen::MatrixXd prim_site_coordinate_cart;
+  Eigen::MatrixXd const prim_site_coordinate_cart;
 
   /// \brief Size=N_prim_site, with names of atoms allowed on
   ///     each prim site
-  std::vector<std::vector<std::string>> prim_allowed_atom_types;
+  std::vector<std::vector<std::string>> const prim_allowed_atom_types;
 
   /// \brief True if vacancies are allowed on any prim site
-  bool vacancies_allowed;
+  bool const vacancies_allowed;
 
   /// \brief Symmetry operations that may be used to skip symmetrically
   ///     equivalent mappings
-  std::vector<xtal::SymOp> prim_factor_group;
+  std::vector<xtal::SymOp> const prim_factor_group;
 
   /// \brief Size=N_mode, with shape=(3,N_prim_site) matrices, giving the
   ///     symmetry invariant displacement modes, with columns
@@ -104,7 +104,7 @@ struct PrimSearchData {
   /// This member may be expensive so it is optional to construct, though
   /// it is required for calculating the symmetry_breaking_atom_cost.
   ///
-  std::optional<std::vector<Eigen::MatrixXd>>
+  std::optional<std::vector<Eigen::MatrixXd>> const
       prim_sym_invariant_displacement_modes;
 };
 
@@ -112,18 +112,19 @@ struct PrimSearchData {
 ///     for mapping searches
 struct LatticeMappingSearchData {
   /// \brief Constructor
-  LatticeMappingSearchData(std::shared_ptr<PrimSearchData> _prim_data,
-                           std::shared_ptr<StructureSearchData> _structure_data,
-                           LatticeMapping const &_lattice_mapping);
+  LatticeMappingSearchData(
+      std::shared_ptr<PrimSearchData const> _prim_data,
+      std::shared_ptr<StructureSearchData const> _structure_data,
+      LatticeMapping _lattice_mapping);
 
   /// \brief Holds prim-related data used for mapping searches
-  std::shared_ptr<PrimSearchData> prim_data;
+  std::shared_ptr<PrimSearchData const> const prim_data;
 
   /// \brief Holds structure-related data
-  std::shared_ptr<StructureSearchData> structure_data;
+  std::shared_ptr<StructureSearchData const> const structure_data;
 
   /// \brief A specific lattice mapping
-  LatticeMapping lattice_mapping;
+  LatticeMapping const lattice_mapping;
 
   /// \brief The transformation matrix that gives the ideal
   ///     superstructure lattice, for this lattice mapping,
@@ -135,32 +136,32 @@ struct LatticeMappingSearchData {
   ///     lround(lattice_mapping.transformation_matrix_to_super *
   ///         lattice_mapping.reorientation)
   ///
-  Eigen::Matrix3l transformation_matrix_to_super;
+  Eigen::Matrix3l const transformation_matrix_to_super;
 
   /// \brief The lattice of the ideal supercell.
-  xtal::Lattice supercell_lattice;
+  xtal::Lattice const supercell_lattice;
 
   /// \brief Generates ideal superstructure sites
-  xtal::UnitCellCoordIndexConverter unitcellcoord_index_converter;
+  xtal::UnitCellCoordIndexConverter const unitcellcoord_index_converter;
 
   /// \brief Number of sites in the ideal superstructure specified
   ///     by the lattice_mapping
-  Index N_supercell_site;
+  Index const N_supercell_site;
 
   /// \brief Matrix of shape=(3,N_supercell_site) containing
   ///     the Cartesian coordinates of the child structure atoms,
   ///     in the state after the inverse lattice mapping deformation
   ///     is applied (\f$F^{-1}\vec{r_2}\f$). The supercell refers
   ///     to the ideal superlattice, S1 = L1 * T * N.
-  Eigen::MatrixXd atom_coordinate_cart_in_supercell;
+  Eigen::MatrixXd const atom_coordinate_cart_in_supercell;
 
   /// \brief A shape=(3,N_supercell_site) matrix of Cartesian
   ///     coordinates of the sites in the ideal supercell.
-  Eigen::MatrixXd supercell_site_coordinate_cart;
+  Eigen::MatrixXd const supercell_site_coordinate_cart;
 
   /// \brief Size=N_supercell_site, with names of atoms allowed on
   ///     each supercell site
-  std::vector<std::vector<std::string>> supercell_allowed_atom_types;
+  std::vector<std::vector<std::string>> const supercell_allowed_atom_types;
 };
 
 /// \brief Make possible atom -> site translations to bring atoms into
@@ -188,34 +189,34 @@ double make_atom_mapping_cost(
 struct AtomMappingSearchData {
   /// \brief Constructor
   AtomMappingSearchData(
-      std::shared_ptr<LatticeMappingSearchData> _lattice_mapping_data,
+      std::shared_ptr<LatticeMappingSearchData const> _lattice_mapping_data,
       Eigen::Vector3d const &_trial_translation_cart,
       AtomMappingCostFunction _atom_mapping_cost_f = make_atom_mapping_cost,
       double _infinity = 1e20);
 
   /// \brief Holds lattice mapping-specific data used
   ///     for mapping searches
-  std::shared_ptr<LatticeMappingSearchData> lattice_mapping_data;
+  std::shared_ptr<LatticeMappingSearchData const> const lattice_mapping_data;
 
   /// \brief A Cartesian translation applied to atom
   ///     coordinates in the ideal superstructure setting
   ///     (i.e. atom_coordinate_cart_in_supercell) to
   ///     bring the atoms into alignment with ideal
   ///     superstructure sites.
-  Eigen::Vector3d trial_translation_cart;
+  Eigen::Vector3d const trial_translation_cart;
 
   /// \brief Shape=(N_supercell_site, N_atom), the
   ///     site-to-atom displacements, of minimum length under
   ///     periodic boundary conditions of the ideal
   ///     superstructure.
-  std::vector<std::vector<Eigen::Vector3d>> site_displacements;
+  std::vector<std::vector<Eigen::Vector3d>> const site_displacements;
 
   /// \brief Shape=(N_supercell_site, N_supercell_site) cost
   ///     matrix used in atom to site assignment problem. The
   ///     element `cost_matrix(i, j)` is set to the cost of
   ///     mapping the j-th atom to the i-th site. If there
   ///     are more sites than atoms, vacancies are added.
-  Eigen::MatrixXd cost_matrix;
+  Eigen::MatrixXd const cost_matrix;
 };
 
 }  // namespace mapping
