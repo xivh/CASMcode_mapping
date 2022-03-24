@@ -39,8 +39,8 @@ struct StructureSearchData {
   StructureSearchData(xtal::Lattice const &_lattice,
                       Eigen::MatrixXd const &_atom_coordinate_cart,
                       std::vector<std::string> _atom_type,
-                      std::vector<xtal::SymOp> _structure_factor_group =
-                          std::vector<xtal::SymOp>{});
+                      std::optional<std::vector<xtal::SymOp>>
+                          override_structure_factor_group = std::nullopt);
 
   /// \brief The structure's lattice
   xtal::Lattice const lattice;
@@ -55,20 +55,24 @@ struct StructureSearchData {
   std::vector<std::string> const atom_type;
 
   /// \brief Symmetry operations that may be used to skip symmetrically
-  ///     equivalent mappings
+  ///     equivalent structure mappings
   std::vector<xtal::SymOp> const structure_factor_group;
+
+  /// \brief Symmetry operations that may be used to skip symmetrically
+  ///     equivalent lattice mappings
+  std::vector<xtal::SymOp> const structure_crystal_point_group;
 };
 
 /// \brief Holds prim-related data used for mapping searches
 struct PrimSearchData {
   /// \brief Constructor
-  PrimSearchData(
-      std::shared_ptr<xtal::BasicStructure const> _shared_prim,
-      std::vector<xtal::SymOp> _prim_factor_group = std::vector<xtal::SymOp>{},
-      bool make_prim_sym_invariant_displacement_modes = true);
+  PrimSearchData(std::shared_ptr<xtal::BasicStructure const> _prim,
+                 std::optional<std::vector<xtal::SymOp>>
+                     override_prim_factor_group = std::nullopt,
+                 bool enable_symmetry_breaking_atom_cost = true);
 
   /// \brief The prim
-  std::shared_ptr<xtal::BasicStructure const> const shared_prim;
+  std::shared_ptr<xtal::BasicStructure const> const prim;
 
   /// \brief The prim lattice
   xtal::Lattice const prim_lattice;
@@ -84,12 +88,13 @@ struct PrimSearchData {
   ///     each prim site
   std::vector<std::vector<std::string>> const prim_allowed_atom_types;
 
-  /// \brief True if vacancies are allowed on any prim site
-  bool const vacancies_allowed;
+  /// \brief Symmetry operations that may be used to skip symmetrically
+  ///     equivalent structure mappings
+  std::vector<xtal::SymOp> const prim_factor_group;
 
   /// \brief Symmetry operations that may be used to skip symmetrically
-  ///     equivalent mappings
-  std::vector<xtal::SymOp> const prim_factor_group;
+  ///     equivalent lattice mappings
+  std::vector<xtal::SymOp> const prim_crystal_point_group;
 
   /// \brief Size=N_mode, with shape=(3,N_prim_site) matrices, giving the
   ///     symmetry invariant displacement modes, with columns
@@ -169,17 +174,17 @@ struct LatticeMappingSearchData {
 std::vector<Eigen::Vector3d> make_trial_translations(
     LatticeMappingSearchData const &lattice_mapping_data);
 
-/// \brief A function, such as `mapping_impl::make_atom_mapping_cost`,
+/// \brief A function, such as `mapping_impl::make_atom_to_site_cost`,
 ///     which calculates the atom-to-site mapping cost given the
 ///     site-to-atom displacement, atom_type, allowed_atom_types,
-///     and value to use unallowed mappings (infinity).
-using AtomMappingCostFunction = std::function<double(
+///     and value to use for unallowed mappings (infinity).
+using AtomToSiteCostFunction = std::function<double(
     Eigen::Vector3d const &displacement, std::string const &atom_type,
     std::vector<std::string> const &allowed_atom_types, double infinity)>;
 
-/// \brief Make the atom mapping cost for a particular atom
+/// \brief Make the mapping cost for a particular atom
 ///     to a particular structure site
-double make_atom_mapping_cost(
+double make_atom_to_site_cost(
     Eigen::Vector3d const &displacement, std::string const &atom_type,
     std::vector<std::string> const &allowed_atom_types, double infinity);
 
@@ -191,7 +196,7 @@ struct AtomMappingSearchData {
   AtomMappingSearchData(
       std::shared_ptr<LatticeMappingSearchData const> _lattice_mapping_data,
       Eigen::Vector3d const &_trial_translation_cart,
-      AtomMappingCostFunction _atom_mapping_cost_f = make_atom_mapping_cost,
+      AtomToSiteCostFunction _atom_to_site_cost_f = make_atom_to_site_cost,
       double _infinity = 1e20);
 
   /// \brief Holds lattice mapping-specific data used

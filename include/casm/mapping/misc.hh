@@ -22,10 +22,10 @@ namespace mapping {
 /// - While results.size() > *k_best:
 ///   - Move results approximately equal to results.rbegin() to overflow, until
 ///     results.size() == *k_best
-template <typename K, typename T, typename GetCostFromKey>
+template <typename K, typename T, typename Compare, typename GetCostFromKey>
 void maintain_k_best_results(std::optional<int> const &k_best, double cost_tol,
-                             std::multimap<K, T> &results,
-                             std::multimap<K, T> &overflow,
+                             std::multimap<K, T, Compare> &results,
+                             std::multimap<K, T, Compare> &overflow,
                              GetCostFromKey get_cost_f) {
   if (!k_best.has_value()) {
     return;

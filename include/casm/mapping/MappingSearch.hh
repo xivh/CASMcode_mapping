@@ -13,6 +13,76 @@
 namespace CASM {
 namespace mapping {
 
+// --- Atom cost calculation ---
+
+/// \brief Function type for calculating atom mapping cost
+using AtomCostFunction =
+    std::function<double(LatticeMappingSearchData const &lattice_mapping_data,
+                         AtomMappingSearchData const &atom_mapping_data,
+                         AtomMapping const &atom_mapping)>;
+
+/// \brief Functor for isotropic atom cost
+struct IsotropicAtomCost {
+  double operator()(LatticeMappingSearchData const &lattice_mapping_data,
+                    AtomMappingSearchData const &atom_mapping_data,
+                    AtomMapping const &atom_mapping) const;
+};
+
+/// \brief Functor for symmetry breaking atom cost
+struct SymmetryBreakingAtomCost {
+  double operator()(LatticeMappingSearchData const &lattice_mapping_data,
+                    AtomMappingSearchData const &atom_mapping_data,
+                    AtomMapping const &atom_mapping) const;
+};
+
+// --- Total cost calculation ---
+
+/// \brief Function type for calculating total mapping cost
+using TotalCostFunction = std::function<double(
+    double lattice_cost, LatticeMappingSearchData const &lattice_mapping_data,
+    double atom_cost, AtomMappingSearchData const &atom_mapping_data,
+    AtomMapping const &atom_mapping)>;
+
+struct WeightedTotalCost {
+  WeightedTotalCost(double _lattice_cost_weight);
+
+  double lattice_cost_weight;
+
+  double operator()(double lattice_cost,
+                    LatticeMappingSearchData const &lattice_mapping_data,
+                    double atom_cost,
+                    AtomMappingSearchData const &atom_mapping_data,
+                    AtomMapping const &atom_mapping) const;
+};
+
+// --- MappingSearch queue management ---
+
+struct MappingSearch;
+
+/// \brief Functor for enforcing MappingSearch queue constraints
+struct QueueConstraints {
+  /// \brief Constructor
+  QueueConstraints(std::optional<double> _min_queue_cost = std::nullopt,
+                   std::optional<double> _max_queue_cost = std::nullopt,
+                   std::optional<Index> _max_queue_size = std::nullopt);
+
+  /// \brief Optional, minimum cost node to store in queue
+  std::optional<double> min_queue_cost;
+
+  /// \brief Optional, maximum cost node to store in queue
+  std::optional<double> max_queue_cost;
+
+  /// \brief Optional, maximum size of queue
+  ///
+  /// If queue size exceeds max_queue_cost, erase the highest cost node
+  std::optional<Index> max_queue_size;
+
+  /// \brief Enforce MappingSearch queue constraints
+  void operator()(MappingSearch &search) const;
+};
+
+// --- Structure mapping search data structures ---
+
 /// \brief A "node" in the search for optimal structure mappings
 ///
 /// This encodes a particular prim, lattice, and atom mapping,
@@ -71,14 +141,23 @@ struct MappingNode {
   }
 };
 
+/// \brief Make mapping node
+MappingNode make_mapping_node(
+    MappingSearch const &search, double lattice_cost,
+    std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
+    Eigen::Vector3d const &trial_translation_cart,
+    std::map<Index, Index> forced_on,
+    std::vector<std::pair<Index, Index>> forced_off);
+
 /// \brief Performs structure mapping searches
 struct MappingSearch {
   /// \brief Constructor
-  MappingSearch(double _min_cost = 0.0, double _max_cost = 1e20,
-                double _lattice_cost_weight = 0.5,
-                std::string _atom_cost_method = "isotropic_atom_cost",
-                int _k_best = 1, double _infinity = 1e20,
-                double _cost_tol = 1e-5);
+  MappingSearch(
+      double _min_cost = 0.0, double _max_cost = 1e20, int _k_best = 1,
+      AtomCostFunction _atom_cost_f = IsotropicAtomCost(),
+      TotalCostFunction _total_cost_f = WeightedTotalCost(0.5),
+      AtomToSiteCostFunction _atom_to_site_cost_f = make_atom_to_site_cost,
+      double _infinity = 1e20, double _cost_tol = 1e-5);
 
   /// \brief A queue of structure mappings, sorted by total
   ///     cost only
@@ -107,20 +186,17 @@ struct MappingSearch {
   /// \brief Maximum cost result to keep
   double max_cost;
 
-  /// \brief Used to determine lattice_cost and components of the total cost
-  ///
-  /// The total cost is:
-  ///
-  ///     lattice_cost_weight * lattice_cost +
-  ///     (1. - lattice_cost_weight) * atom_cost
-  ///
-  double lattice_cost_weight;
-
-  /// \brief If true, use symmetry-break atom cost, else use isotropic atom cost
-  bool is_symmetry_breaking_atom_cost;
-
   /// \brief Maximum number of results to keep (approximate ties are also kept)
   int k_best;
+
+  /// \brief Function to calculate the atom mapping cost
+  AtomCostFunction atom_cost_f;
+
+  /// \brief Function to calculate the total mapping cost
+  TotalCostFunction total_cost_f;
+
+  /// \brief Function used to calculate the atom-to-site mapping cost
+  AtomToSiteCostFunction atom_to_site_cost_f;
 
   /// \brief Cost used to prevent assignments that are not allowed
   double infinity;
@@ -128,38 +204,64 @@ struct MappingSearch {
   /// \brief Tolerance used for comparing costs
   double cost_tol;
 
-  double make_atom_cost(
-      Eigen::MatrixXd const &displacement,
-      LatticeMappingSearchData const &lattice_mapping_data) const;
+  /// \brief Return lowest total cost MappingNode in the queue
+  MappingNode const &front() const;
 
-  double make_total_cost(double lattice_cost, double atom_cost) const;
+  /// \brief Return highest total cost MappingNode in the queue
+  MappingNode const &back() const;
 
-  /// \brief Make a new MappingNode from an assignment problem node
-  ///     with a solved sub_assignment
-  MappingNode make_mapping_node_from_assignment_node(
-      murty::Node assignment_node, double lattice_cost,
-      std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
-      std::shared_ptr<AtomMappingSearchData const> atom_mapping_data);
+  /// \brief Erase lowest total cost MappingNode in the queue
+  void pop_front();
 
-  /// \brief Insert mapping node into this->queue & this->results,
-  ///     maintaining k-best results
-  std::multiset<MappingNode>::iterator insert(MappingNode mapping_node);
+  /// \brief Erase highest total cost MappingNode in the queue
+  void pop_back();
+
+  /// \brief Return the size of the queue
+  Index size() const;
 
   /// \brief Make assignment and insert mapping node
   ///     into this->queue & this->results, maintaining k-best results
   std::multiset<MappingNode>::iterator make_and_insert_mapping_node(
       double lattice_cost,
       std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
-      std::shared_ptr<AtomMappingSearchData const> atom_mapping_data,
+      Eigen::Vector3d const &trial_translation_cart,
       std::map<Index, Index> forced_on = {},
       std::vector<std::pair<Index, Index>> forced_off = {});
 
   /// \brief Make the next level of sub-optimal assignments and
   ///     inserts them into this->queue & this->results, maintaining
   ///     k-best results
-  std::vector<std::multiset<MappingNode>::iterator> partition(
-      MappingNode const &node);
+  std::vector<std::multiset<MappingNode>::iterator> partition();
 };
+
+/// --- Inline implementation ---
+
+/// \brief Return lowest total cost MappingNode in the queue
+///
+/// Invalid if !size()
+inline MappingNode const &MappingSearch::front() const {
+  return *queue.begin();
+}
+
+/// \brief Return highest total cost MappingNode in the queue
+///
+/// Invalid if !size()
+inline MappingNode const &MappingSearch::back() const {
+  return *queue.rbegin();
+}
+
+/// \brief Erase lowest total cost MappingNode in the queue
+///
+/// Invalid if !size()
+inline void MappingSearch::pop_front() { queue.erase(queue.begin()); }
+
+/// \brief Erase highest total cost MappingNode in the queue
+///
+/// Invalid if !size()
+inline void MappingSearch::pop_back() { queue.erase(queue.rbegin().base()); }
+
+/// \brief Return the size of the queue
+inline Index MappingSearch::size() const { return queue.size(); }
 
 }  // namespace mapping
 }  // namespace CASM

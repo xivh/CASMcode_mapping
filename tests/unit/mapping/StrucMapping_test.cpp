@@ -472,7 +472,8 @@ TEST(SymInvariantMappingTest, shuffle) {
       min_va_frac, max_va_frac);
   sym_struc_map.set_symmetrize_atomic_cost(true, parent_fg,
                                            parent_permute_group);
-
+  EXPECT_EQ(
+      sym_struc_map.calculator().sym_invariant_displacement_modes().size(), 1);
   auto child_fg = xtal::make_factor_group(basic_struc);
 
   // Loop through all shuffles and calculate the mapping cost
