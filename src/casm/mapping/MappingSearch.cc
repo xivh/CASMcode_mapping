@@ -46,14 +46,18 @@ namespace mapping_impl {
 /// \param deformation_gradient The deformation gradient of
 ///     the lattice mapping that this atom mapping is solved
 ///     in the context of.
+/// \param enable_remove_mean_displacement If true, the
+///     AtomMapping translation and displacements are adjusted
+///     consistently so that the mean displacment is zero.
 ///
 /// \returns An AtomMapping constructed from the inputs, with
 ///     mean displacement removed.
 AtomMapping make_atom_mapping_from_assignment(
-    murty::Assignment const &assignment,
+    std::vector<Index> const &assignment,
     std::vector<std::vector<Eigen::Vector3d>> const &site_displacements,
     Eigen::VectorXd trial_translation,
-    Eigen::Matrix3d const &deformation_gradient) {
+    Eigen::Matrix3d const &deformation_gradient,
+    bool enable_remove_mean_displacement) {
   Index N_site = assignment.size();
 
   // atom[perm[i]] -> is assigned to -> site[i]
@@ -65,18 +69,20 @@ AtomMapping make_atom_mapping_from_assignment(
     disp.col(site_index) = site_displacements[site_index][perm[site_index]];
   }
 
-  // calculate mean displacement
-  Eigen::Vector3d mean_disp = Eigen::Vector3d::Zero();
-  for (Index site_index = 0; site_index < N_site; ++site_index) {
-    mean_disp += disp.col(site_index);
-  }
-  mean_disp /= double(N_site);
+  if (enable_remove_mean_displacement) {
+    // calculate mean displacement
+    Eigen::Vector3d mean_disp = Eigen::Vector3d::Zero();
+    for (Index site_index = 0; site_index < N_site; ++site_index) {
+      mean_disp += disp.col(site_index);
+    }
+    mean_disp /= double(N_site);
 
-  // subtract mean displacement
-  for (Index site_index = 0; site_index < N_site; ++site_index) {
-    disp.col(site_index) -= mean_disp;
+    // subtract mean displacement
+    for (Index site_index = 0; site_index < N_site; ++site_index) {
+      disp.col(site_index) -= mean_disp;
+    }
+    trial_translation -= mean_disp;
   }
-  trial_translation -= mean_disp;
 
   return AtomMapping(disp, perm, deformation_gradient * trial_translation);
 }
@@ -98,7 +104,8 @@ MappingNode make_mapping_node_from_assignment_node(
       murty::make_assignment(assignment_node),
       atom_mapping_data->site_displacements,
       atom_mapping_data->trial_translation_cart,
-      lattice_mapping_data->lattice_mapping.deformation_gradient);
+      lattice_mapping_data->lattice_mapping.deformation_gradient,
+      search.enable_remove_mean_displacement);
   double atom_cost = search.atom_cost_f(*lattice_mapping_data,
                                         *atom_mapping_data, atom_mapping);
   double total_cost =
@@ -361,6 +368,9 @@ MappingNode make_mapping_node(
 /// \param _k_best Keep the k_best results satisfying the min_cost and
 ///     max_cost constraints. If there are approximate ties, those
 ///     will also be kept.
+/// \param enable_remove_mean_displacement If true, the
+///     AtomMapping translation and displacements are adjusted
+///     consistently so that the mean displacment is zero.
 /// \param _infinity The value to use in the assignment problem cost
 ///     matrix for unallowed assignments
 /// \param _cost_tol Tolerance for checking if mapping costs are
@@ -369,6 +379,7 @@ MappingSearch::MappingSearch(double _min_cost, double _max_cost, int _k_best,
                              AtomCostFunction _atom_cost_f,
                              TotalCostFunction _total_cost_f,
                              AtomToSiteCostFunction _atom_to_site_cost_f,
+                             bool enable_remove_mean_displacement,
                              double _infinity, double _cost_tol)
     : min_cost(_min_cost),
       max_cost(_max_cost),
@@ -438,9 +449,18 @@ MappingSearch::make_and_insert_mapping_node(
 ///     using the Murty algorithm
 ///
 /// \returns A vector of iterators to the generated sub-nodes in queue,
-///     or queue.end() if not inserted
+///     or queue.end() if not inserted. Empty vector if queue is empty
+///     or no sub-nodes are possible.
 ///
 std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
+  // results are iterators to newly generated sub-nodes
+  std::vector<std::multiset<MappingNode>::iterator> result;
+
+  // if nothing in queue, nothing can be done
+  if (!this->size()) {
+    return result;
+  }
+
   MappingNode const &node = this->front();
   // -- Make the next level of sub-optimal assignment solutions ---
   std::multiset<murty::Node> s;
@@ -452,7 +472,6 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
   // This loop extracts the values from 's', uses them to
   // construct MappingNode, and continues until they are
   // all extracted.
-  std::vector<std::multiset<MappingNode>::iterator> result;
   while (s.size()) {
     // --- Make mapping node from sub-optimal assignment ---
     MappingNode mapping_node =

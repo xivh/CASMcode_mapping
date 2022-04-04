@@ -157,7 +157,8 @@ struct MappingSearch {
       AtomCostFunction _atom_cost_f = IsotropicAtomCost(),
       TotalCostFunction _total_cost_f = WeightedTotalCost(0.5),
       AtomToSiteCostFunction _atom_to_site_cost_f = make_atom_to_site_cost,
-      double _infinity = 1e20, double _cost_tol = 1e-5);
+      bool enable_remove_mean_displacement = true, double _infinity = 1e20,
+      double _cost_tol = 1e-5);
 
   /// \brief A queue of structure mappings, sorted by total
   ///     cost only
@@ -197,6 +198,11 @@ struct MappingSearch {
 
   /// \brief Function used to calculate the atom-to-site mapping cost
   AtomToSiteCostFunction atom_to_site_cost_f;
+
+  /// \brief If true, the AtomMapping translation and displacements
+  ///     are adjusted consistently so that the mean displacment is
+  ///     zero.
+  bool enable_remove_mean_displacement;
 
   /// \brief Cost used to prevent assignments that are not allowed
   double infinity;

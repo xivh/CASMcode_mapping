@@ -174,7 +174,7 @@ struct LatticeMappingSearchData {
 std::vector<Eigen::Vector3d> make_trial_translations(
     LatticeMappingSearchData const &lattice_mapping_data);
 
-/// \brief A function, such as `mapping_impl::make_atom_to_site_cost`,
+/// \brief A function, such as `make_atom_to_site_cost`,
 ///     which calculates the atom-to-site mapping cost given the
 ///     site-to-atom displacement, atom_type, allowed_atom_types,
 ///     and value to use for unallowed mappings (infinity).

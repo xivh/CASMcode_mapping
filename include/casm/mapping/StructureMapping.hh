@@ -5,6 +5,9 @@
 #include "casm/mapping/LatticeMapping.hh"
 
 namespace CASM {
+namespace xtal {
+class BasicStructure;
+}
 namespace mapping {
 
 /// \brief Used to sort structure mappings and store the lattice

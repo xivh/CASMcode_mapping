@@ -1,18 +1,10 @@
 #include <pybind11/eigen.h>
+#include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include "casm/crystallography/BasicStructure.hh"
-#include "casm/crystallography/Lattice.hh"
-#include "casm/crystallography/SimpleStructure.hh"
-#include "casm/crystallography/SymType.hh"
-#include "casm/mapping/AtomMapping.hh"
-#include "casm/mapping/LatticeMapping.hh"
 #include "casm/mapping/MappingSearch.hh"
-#include "casm/mapping/StructureMapping.hh"
-#include "casm/mapping/map_atoms.hh"
-#include "casm/mapping/map_lattices.hh"
-#include "casm/mapping/map_structures.hh"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -29,24 +21,20 @@ using namespace CASM::mapping;
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
-PYBIND11_MODULE(search, m) {
+PYBIND11_MODULE(mapsearch, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
-        casm.mapping.search
-        ------------
+        Components for implementing custom structure mapping searches
 
-        The casm.mapping.search module is a Python interface to the mapping
-        search classes and methods in the CASM::mapping namespace of the CASM
-        C++ libraries. This includes:
+        casm.mapping.mapsearch
+        ----------------------
 
-        - Methods for performing a search for mapping transformations that
-          relate one structure to another
-
-    )pbdoc";
+        The casm.mapping.mapsearch module contains data structures and methods
+        used to perform structure mapping searches.
+        )pbdoc";
   py::module::import("casm.xtal");
-  py::module::import("casm.xtal.mapping");
-  m.attr("TOL") = TOL;
+  py::module::import("casm.mapping.info");
 
   py::class_<PrimSearchData, std::shared_ptr<PrimSearchData>>(
       m, "PrimSearchData", R"pbdoc(
@@ -84,40 +72,40 @@ PYBIND11_MODULE(search, m) {
           )pbdoc")
       .def(
           "prim", [](PrimSearchData const &m) { return m.prim; },
-          "Return the prim.")
+          "Returns the prim.")
       .def(
           "prim_lattice",
           [](PrimSearchData const &m) { return m.prim_lattice; },
-          "Return the lattice of the prim.")
+          "Returns the lattice of the prim.")
       .def(
           "N_prim_site", [](PrimSearchData const &m) { return m.N_prim_site; },
-          "Return the number of sites in the prim.")
+          "Returns the number of sites in the prim.")
       .def(
           "prim_site_coordinate_cart",
           [](PrimSearchData const &m) { return m.prim_site_coordinate_cart; },
-          "Return the Cartesian coordinates of prim sites as columns of a "
+          "Returns the Cartesian coordinates of prim sites as columns of a "
           "shape=(3,N_prim_site) matrix.")
       .def(
           "prim_allowed_atom_types",
           [](PrimSearchData const &m) { return m.prim_allowed_atom_types; },
-          "Return a size=N_prim_site array of arrays with the names of atoms "
+          "Returns a size=N_prim_site array of arrays with the names of atoms "
           "allowed on each site in the prim.")
       .def(
           "prim_factor_group",
           [](PrimSearchData const &m) { return m.prim_factor_group; },
-          "Return symmetry operations of the prim that may be used to skip "
+          "Returns symmetry operations of the prim that may be used to skip "
           "symmetrically equivalent structure mappings.")
       .def(
           "prim_crystal_point_group",
           [](PrimSearchData const &m) { return m.prim_crystal_point_group; },
-          "Return point group operations of the prim that may be used to skip "
+          "Returns point group operations of the prim that may be used to skip "
           "symmetrically equivalent lattice mappings.")
       .def(
           "prim_sym_invariant_displacement_modes",
           [](PrimSearchData const &m) {
             return m.prim_sym_invariant_displacement_modes;
           },
-          "Return a size=N_mode vector with shape=(3,N_prim_site) matrices, "
+          "Returns a size=N_mode vector with shape=(3,N_prim_site) matrices, "
           "giving the symmetry invariant displacement modes. Columns of the "
           "matrices are the displacements associated with each site for a "
           "given mode.");
@@ -176,33 +164,33 @@ PYBIND11_MODULE(search, m) {
           )pbdoc")
       .def(
           "lattice", [](StructureSearchData const &m) { return m.lattice; },
-          "Return the lattice of the structure being mapped.")
+          "Returns the lattice of the structure being mapped.")
       .def(
           "N_atom", [](StructureSearchData const &m) { return m.N_atom; },
-          "Return the number of atoms (and explicitly included vacancies) in "
+          "Returns the number of atoms (and explicitly included vacancies) in "
           "the structure being mapped.")
       .def(
           "atom_coordinate_cart",
           [](StructureSearchData const &m) { return m.atom_coordinate_cart; },
-          "Return the Cartesian coordinates, as columns of a shape=(3,N_atom) "
+          "Returns the Cartesian coordinates, as columns of a shape=(3,N_atom) "
           "matrix, of atoms (and explicitly included vacancies) in the "
           "structure being mapped.")
       .def(
           "atom_type", [](StructureSearchData const &m) { return m.atom_type; },
-          "Return a size=N_atom array of with the name of the atom (or "
+          "Returns a size=N_atom array of with the name of the atom (or "
           "explicitly included vacancy) at each site. Explicit specified "
           "vacancies should be given the name \"Va\", \"VA\", or \"va\".")
       .def(
           "structure_factor_group",
           [](StructureSearchData const &m) { return m.structure_factor_group; },
-          "Return symmetry operations of the structure being mapped that may "
+          "Returns symmetry operations of the structure being mapped that may "
           "be used to skip symmetrically equivalent structure mappings.")
       .def(
           "structure_crystal_point_group",
           [](StructureSearchData const &m) {
             return m.structure_crystal_point_group;
           },
-          "Return point group operations of the structure being mapped that "
+          "Returns point group operations of the structure being mapped that "
           "may be used to skip symmetrically equivalent lattice mappings.");
 
   py::class_<LatticeMappingSearchData,
@@ -212,7 +200,7 @@ PYBIND11_MODULE(search, m) {
 
       This object holds shared data for use by all structure mappings
       in the context of a single lattice mapping
-      (`~casm.mapping.LatticeMapping`).
+      (`~casm.mapping.info.LatticeMapping`).
       )pbdoc")
       .def(py::init<std::shared_ptr<mapping::PrimSearchData const>,
                     std::shared_ptr<mapping::StructureSearchData const>,
@@ -225,32 +213,34 @@ PYBIND11_MODULE(search, m) {
           Parameters
           ----------
 
-          prim_data : casm.mapping.search.PrimSearchData
+          prim_data : casm.mapping.mapsearch.PrimSearchData
               Search data for a prim being mapped to
-          structure_data : casm.mapping.search.StructureSearchData
+          structure_data : casm.mapping.mapsearch.StructureSearchData
               Search data for the structure being mapped
-          lattice_mapping : casm.mapping.LatticeMapping
-              Lattice mapping between the prim and structure.
+          lattice_mapping : casm.mapping.info.LatticeMapping
+              Lattice mapping between the prim being mapped to and
+              the structure being mapped
           )pbdoc")
       .def(
           "prim_data",
           [](LatticeMappingSearchData const &m) { return m.prim_data; },
-          "Return the search data for the prim being mapped to.")
+          "Returns the search data for the prim being mapped to.")
       .def(
           "structure_data",
           [](LatticeMappingSearchData const &m) { return m.structure_data; },
-          "Return the search data for the structure being mapped.")
+          "Returns the search data for the structure being mapped.")
       .def(
           "lattice_mapping",
           [](LatticeMappingSearchData const &m) { return m.lattice_mapping; },
-          "Return the lattice mapping between the prim and structure.")
+          "Returns the lattice mapping between the prim being mapped to and "
+          "the structure being mapped.")
       .def(
           "transformation_matrix_to_super",
           [](LatticeMappingSearchData const &m) {
             return m.transformation_matrix_to_super;
           },
           R"pbdoc(
-          Return the transformation matrix to the ideal superstructure lattice
+          Returns the transformation matrix to the ideal superstructure lattice
 
           The transformation matrix that gives the ideal
           superstructure lattice, for this lattice mapping,
@@ -267,15 +257,16 @@ PYBIND11_MODULE(search, m) {
           "supercell_lattice",
           [](LatticeMappingSearchData const &m) { return m.supercell_lattice; },
           R"pbdoc(
-          Return the lattice of the ideal supercell.
+          Returns the lattice of the ideal supercell.
 
           The lattice of the ideal supercell is :math:`S_1 = L_1 * T * N`
-          as defined in `~casm.xtal.LatticeMapping`).
+          as defined in `~casm.mapping.info.LatticeMapping`).
           )pbdoc")
       .def(
           "N_supercell_site",
           [](LatticeMappingSearchData const &m) { return m.N_supercell_site; },
-          "Return the number of sites in the ideal superstructure specified by "
+          "Returns the number of sites in the ideal superstructure specified "
+          "by "
           "the lattice_mapping.")
       .def(
           "atom_coordinate_cart_in_supercell",
@@ -283,23 +274,27 @@ PYBIND11_MODULE(search, m) {
             return m.atom_coordinate_cart_in_supercell;
           },
           R"pbdoc(
-          Return atom coordinates mapped to the lattice of the ideal supercell
+          Returns atom coordinates mapped to the lattice of the ideal supercell
 
-          Return the shape=(3,N_supercell_site) matrix with columns
-          containing the Cartesian coordinates of the structure's atoms
-          in the state after the inverse lattice mapping deformation is
-          applied (:math:`F^{-1}\vec{r_2}`, as defined in
-          `~casm.xtal.AtomMapping`). The "supercell" refers to the
-          lattice of the ideal supercell, `supercell_lattice`,
-          :math:`S_1 = L_1 * T * N`, as defined in
-          `~casm.xtal.LatticeMapping`).
+          Returns
+          -------
+          atom_coordinate_cart_in_supercell : numpy.ndarray[numpy.float64[m, n]]
+              This is :math:`F^{-1}\vec{r_2}`, as defined in
+              `~casm.mapping.info.AtomMapping`, a shape=(3,N_supercell_site)
+              matrix with columns containing the Cartesian coordinates of the
+              structure's atoms in the state after the inverse lattice
+              mapping deformation is applied.
+
+              The "supercell" refers to the ideal supercell, with superlattice,
+              :math:`S_1 = L_1 * T * N`, as defined in
+              `~casm.mapping.info.LatticeMapping`.
           )pbdoc")
       .def(
           "supercell_site_coordinate_cart",
           [](LatticeMappingSearchData const &m) {
             return m.supercell_site_coordinate_cart;
           },
-          "Return Cartesian coordinates of sites in the ideal "
+          "Returns the Cartesian coordinates of sites in the ideal "
           "supersuperstructure, as columns of a shape=(3,N_supercell_site) "
           "matrix.")
       .def(
@@ -307,12 +302,12 @@ PYBIND11_MODULE(search, m) {
           [](LatticeMappingSearchData const &m) {
             return m.supercell_allowed_atom_types;
           },
-          "Return a size=N_supercell_site array of arrays with the names of "
+          "Returns a size=N_supercell_site array of arrays with the names of "
           "atoms allowed on each site in the ideal superstructure.");
 
   m.def("make_trial_translations", &mapping::make_trial_translations,
         R"pbdoc(
-        Return translations that bring atoms into registry with ideal superstructure sites.
+        Returns translations that bring atoms into registry with ideal superstructure sites.
 
         Atom mapping assignment is made by optimizing a cost that depends on
         site-to-atom displacements, `site_displacements`, that are calculated
@@ -322,7 +317,7 @@ PYBIND11_MODULE(search, m) {
                 F^{-1}*atom_coordinate_cart[j] + trial_translation_cart
 
         under periodic boundary conditions. The trial_translation may not be
-        equal to the final :class:`~casm.mapping.AtomMapping` translation
+        equal to the final :class:`~casm.mapping.info.AtomMapping` translation
         which is chosen after solving the atom assignment problem so that
         the mean displacement of the atom mapping is equal to zero.
 
@@ -333,7 +328,7 @@ PYBIND11_MODULE(search, m) {
 
         Parameters
         ----------
-        lattice_mapping_data : casm.mapping.search.LatticeMappingSearchData
+        lattice_mapping_data : casm.mapping.mapsearch.LatticeMappingSearchData
             Data describing a lattice mapping between a prim and a structure
 
         Returns
@@ -347,7 +342,7 @@ PYBIND11_MODULE(search, m) {
 
   m.def("make_atom_to_site_cost", &make_atom_to_site_cost,
         R"pbdoc(
-        Return the cost for mapping a particular atom to a particular site
+        Returns the cost for mapping a particular atom to a particular site
 
         The mapping cost:
 
@@ -393,7 +388,7 @@ PYBIND11_MODULE(search, m) {
               F^{-1}*atom_coordinate_cart[j] + trial_translation_cart
 
       under periodic boundary conditions. The trial_translation may not be
-      equal to the final :class:`~casm.mapping.AtomMapping` translation
+      equal to the final :class:`~casm.mapping.info.AtomMapping` translation
       which is chosen after solving the atom assignment problem so that
       the mean displacement of the atom mapping is equal to zero.
 
@@ -412,7 +407,7 @@ PYBIND11_MODULE(search, m) {
           Parameters
           ----------
 
-          lattice_mapping_data : casm.mapping.search.LatticeMappingSearchData
+          lattice_mapping_data : casm.mapping.mapsearch.LatticeMappingSearchData
               Search data for a particular lattice mapping between a prim and
               the structure being mapped.
           trial_translation_cart : array_like, shape=(3,)
@@ -423,7 +418,7 @@ PYBIND11_MODULE(search, m) {
           atom_to_site_cost_f : function, optional
               A function used to calculate the cost of mapping an atom to a
               particular site. Follows the signature of
-              :func:`~casm.mapping.search.make_atom_to_site_cost`, which is
+              :func:`~casm.mapping.mapsearch.make_atom_to_site_cost`, which is
               the default method.
           infinity : float, default=1e20
               The value to use for the cost of unallowed mappings.
@@ -431,13 +426,14 @@ PYBIND11_MODULE(search, m) {
       .def(
           "lattice_mapping_data",
           [](AtomMappingSearchData const &m) { return m.lattice_mapping_data; },
-          "Return the search data for the lattice mapping.")
+          "Returns the search data for the lattice mapping.")
       .def(
           "trial_translation_cart",
           [](AtomMappingSearchData const &m) {
             return m.trial_translation_cart;
           },
-          "Return the Cartesian translation applied to atom coordinates in the "
+          "Returns the Cartesian translation applied to atom coordinates in "
+          "the "
           "ideal superstructure setting (i.e. "
           "atom_coordinate_cart_in_supercell) to bring the atoms into "
           "alignment with ideal superstructure sites.")
@@ -445,7 +441,7 @@ PYBIND11_MODULE(search, m) {
           "site_displacements",
           [](AtomMappingSearchData const &m) { return m.site_displacements; },
           R"pbdoc(
-          Return the site-to-atom displacements of minimum length under periodic boundary conditions of the ideal superstructure.
+          Returns the site-to-atom displacements of minimum length under periodic boundary conditions of the ideal superstructure.
 
           The displacements are indexed using
           `site_displacements[site_index][atom_index]`, where the `site_index`
@@ -468,13 +464,58 @@ PYBIND11_MODULE(search, m) {
           respectively.
           )pbdoc");
 
+  py::class_<IsotropicAtomCost>(m, "IsotropicAtomCost", R"pbdoc(
+      A functor for calculating the isotropic atom mapping cost
+
+      )pbdoc")
+      .def(py::init())
+      .def("__call__", &IsotropicAtomCost::operator(),
+           py::arg("lattice_mapping_data"), py::arg("atom_mapping_data"),
+           py::arg("atom_mapping"),
+           "Calculate the isotropic atom mapping cost");
+
+  py::class_<SymmetryBreakingAtomCost>(m, "SymmetryBreakingAtomCost", R"pbdoc(
+     A functor for calculating the symmetry-breaking atom mapping cost
+
+     )pbdoc")
+      .def(py::init())
+      .def("__call__", &SymmetryBreakingAtomCost::operator(),
+           py::arg("lattice_mapping_data"), py::arg("atom_mapping_data"),
+           py::arg("atom_mapping"),
+           "Calculate the symmetry-breaking atom mapping cost");
+
+  py::class_<WeightedTotalCost>(m, "WeightedTotalCost", R"pbdoc(
+     A functor for calculating the total mapping cost as a weighted average of
+     the lattice and atom mapping costs
+
+     The total mapping cost is calculated as
+
+     .. code-block:: Python
+
+         total_cost = lattice_cost_weight*lattice_cost + (1.0 - lattice_cost_weight)*atom_cost
+
+     )pbdoc")
+      .def(py::init<double>(), py::arg("lattice_cost_weight"), R"pbdoc(
+        Construct a WeightedTotalCost functor
+
+        Parameters
+        ----------
+        lattice_cost_weight : float
+            The weight given to the lattice cost in the total mapping cost.
+        )pbdoc")
+      .def("__call__", &WeightedTotalCost::operator(), py::arg("lattice_cost"),
+           py::arg("lattice_mapping_data"), py::arg("atom_cost"),
+           py::arg("atom_mapping_data"), py::arg("atom_mapping"),
+           "Calculate the total mapping cost as a weighted average of the "
+           "lattice and atom mapping costs");
+
   py::class_<MappingNode>(m, "MappingNode", R"pbdoc(
       A node in the search for optimal structure mappings
 
       This encodes a particular prim, lattice mapping, and atom mapping,
       and includes the information needed to continue searching for
       suboptimal assignments. It is constructed in the context of a
-      :class:`~casm.mapping.search.MappingSearch`, and not on its own.
+      :class:`~casm.mapping.mapsearch.MappingSearch`, and not on its own.
       )pbdoc")
       .def(py::init(&make_mapping_node), py::arg("search"),
            py::arg("lattice_cost"), py::arg("lattice_mapping_data"),
@@ -488,14 +529,14 @@ PYBIND11_MODULE(search, m) {
 
           Parameters
           ----------
-          search : casm.mapping.search.MappingSearch
-              A :class:`~casm.mapping.search.MappingSearch` method.
+          search : casm.mapping.mapsearch.MappingSearch
+              A :class:`~casm.mapping.mapsearch.MappingSearch` method.
           lattice_cost : float
               The lattice mapping cost.
-          lattice_mapping_data : casm.mapping.search.LatticeMappingSearchData
+          lattice_mapping_data : casm.mapping.mapsearch.LatticeMappingSearchData
               Search data for a particular lattice mapping between a prim and
               the structure being mapped.
-          atom_mapping_data : casm.mapping.search.AtomMappingSearchData
+          atom_mapping_data : casm.mapping.mapsearch.AtomMappingSearchData
               Search data for a particular lattice mapping and choice of
               trial translation between a prim and the structure being mapped.
           forced_on : Dict[int, int]
@@ -507,31 +548,31 @@ PYBIND11_MODULE(search, m) {
           )pbdoc")
       .def(
           "lattice_cost", [](MappingNode const &m) { return m.lattice_cost; },
-          "Return the lattice mapping cost.")
+          "Returns the lattice mapping cost.")
       .def(
           "lattice_mapping_data",
           [](MappingNode const &m) { return m.lattice_mapping_data; },
-          "Return the search data for the lattice mapping.")
+          "Returns the search data for the lattice mapping.")
       .def(
           "atom_cost", [](MappingNode const &m) { return m.atom_cost; },
-          "Return the atom mapping cost.")
+          "Returns the atom mapping cost.")
       .def(
           "atom_mapping_data",
           [](MappingNode const &m) { return m.atom_mapping_data; },
-          "Return the search data for a particular lattice mapping and choice "
+          "Returns the search data for a particular lattice mapping and choice "
           "of trial translation between a prim and the structure being mapped.")
       .def(
           "atom_mapping", [](MappingNode const &m) { return m.atom_mapping; },
-          "Return the atom mapping transformation.")
+          "Returns the atom mapping transformation.")
       .def(
           "forced_on",
           [](MappingNode const &m) { return m.assignment_node.forced_on; },
-          "Return a map of assignments `site_index: atom_index` that are "
+          "Returns a map of assignments `site_index: atom_index` that are "
           "forced on.")
       .def(
           "forced_off",
           [](MappingNode const &m) { return m.assignment_node.forced_on; },
-          "Return a list of tuples of assignments `(site_index, atom_index)` "
+          "Returns a list of tuples of assignments `(site_index, atom_index)` "
           "that are forced off.");
 
   py::class_<MappingSearch>(m, "MappingSearch", R"pbdoc(
@@ -540,7 +581,7 @@ PYBIND11_MODULE(search, m) {
       The MappingSearch class holds parameters, data,
       and methods used to search for low cost structure mappings.
 
-      It holds a queue of :class:`~casm.mapping.search.MappingNode`,
+      It holds a queue of :class:`~casm.mapping.mapsearch.MappingNode`,
       which encode a particular structure mapping, and the data
       necessary to start from that structure mapping and find
       sub-optimal atom mappings as part of a search using the Murty
@@ -557,24 +598,25 @@ PYBIND11_MODULE(search, m) {
 
       Overview of methods:
 
-      - To begin, :func:`~casm.mapping.search.MappingSearch.make_and_insert_mapping_node` is called one or more times to generate initial structure mapping solutions given a particular lattice mapping and choice of trial translation to bring atoms into alignment with sites that they might be mapped to. Each call adds one node (think one structure mapping) to the MappingSearch queue and, potentially, to the MappingSearch results (if the cost range and k-best acceptance criterais are satisfied).
-      - Then, :func:`~casm.mapping.search.MappingSearch.partition` is called repeatedly to search for sub-optimal cost mapping solutions. Each partition creates 0 or more nodes (structure mappings with sub-optimal atom assignment solutions) which are inserted into the MappingSearch queue and, potentially, to the MappingSearch results (if the cost range and k-best acceptance criterais are satisfied).
-      - The methods :func:`~casm.mapping.search.MappingSearch.front`, :func:`~casm.mapping.search.MappingSearch.back`, :func:`~casm.mapping.search.MappingSearch.pop_front`, :func:`~casm.mapping.search.MappingSearch.pop_back`, and :func:`~casm.mapping.search.MappingSearch.size` allow managing
+      - To begin, :func:`~casm.mapping.mapsearch.MappingSearch.make_and_insert_mapping_node` is called one or more times to generate initial structure mapping solutions given a particular lattice mapping and choice of trial translation to bring atoms into alignment with sites that they might be mapped to. Each call adds one node (think one structure mapping) to the MappingSearch queue and, potentially, to the MappingSearch results (if the cost range and k-best acceptance criterais are satisfied).
+      - Then, :func:`~casm.mapping.mapsearch.MappingSearch.partition` is called repeatedly to search for sub-optimal cost mapping solutions. Each partition creates 0 or more nodes (structure mappings with sub-optimal atom assignment solutions) which are inserted into the MappingSearch queue and, potentially, to the MappingSearch results (if the cost range and k-best acceptance criterais are satisfied).
+      - The methods :func:`~casm.mapping.mapsearch.MappingSearch.front`, :func:`~casm.mapping.mapsearch.MappingSearch.back`, :func:`~casm.mapping.mapsearch.MappingSearch.pop_front`, :func:`~casm.mapping.mapsearch.MappingSearch.pop_back`, and :func:`~casm.mapping.mapsearch.MappingSearch.size` allow managing
         the MapppingSearch queue.
 
 
       Notes
       -----
-      The :class:`~casm.mapping.search.QueueConstraints` class is example of
+      The :class:`~casm.mapping.mapsearch.QueueConstraints` class is example of
       approach to manage the MappingSearch queue during a search.
       )pbdoc")
       .def(py::init<double, double, int, AtomCostFunction, TotalCostFunction,
-                    AtomToSiteCostFunction, double, double>(),
+                    AtomToSiteCostFunction, bool, double, double>(),
            py::arg("min_cost") = 0.0, py::arg("max_cost") = 1e20,
            py::arg("k_best") = 1, py::arg("atom_cost_f") = IsotropicAtomCost(),
            py::arg("total_cost_f") = WeightedTotalCost(0.5),
            py::arg("atom_to_site_cost_f") =
                AtomToSiteCostFunction(make_atom_to_site_cost),
+           py::arg("enable_remove_mean_displacement") = true,
            py::arg("infinity") = 1e20, py::arg("cost_tol") = 1e-5,
            R"pbdoc(
           Construct a MappingSearch
@@ -589,44 +631,47 @@ PYBIND11_MODULE(search, m) {
               Keep the k_best mappings with lowest total cost that also
               satisfy the min/max cost criteria. Approximate ties with the
               current k_best result are also kept.
-          atom_cost_f : function, default=`~casm.mapping.search.IsotropicAtomCost()`
+          atom_cost_f : function, default=`~casm.mapping.mapsearch.IsotropicAtomCost()`
               Function used to calculate the atom mapping cost. Expected to
-              match the same signature as :class:`~casm.mapping.search.IsotropicAtomCost`.
+              match the same signature as :class:`~casm.mapping.mapsearch.IsotropicAtomCost`.
               Possible atom mapping cost functions:
 
-              - :class:`~casm.mapping.search.IsotropicAtomCost`
-              - :class:`~casm.mapping.search.SymmetryBreakingAtomCost`
+              - :class:`~casm.mapping.mapsearch.IsotropicAtomCost`
+              - :class:`~casm.mapping.mapsearch.SymmetryBreakingAtomCost`
 
-          total_cost_f : function, default=`~casm.mapping.search.WeightedTotalCost()`
+          total_cost_f : function, default=`~casm.mapping.mapsearch.WeightedTotalCost()`
               Function used to calculate the total mapping cost. Expected to
-              match the same signature as :class:`~casm.mapping.search.WeightedTotalCost`.
+              match the same signature as :class:`~casm.mapping.mapsearch.WeightedTotalCost`.
               Possible total mapping cost functions:
 
-              - :class:`~casm.mapping.search.WeightedTotalCost()`
+              - :class:`~casm.mapping.mapsearch.WeightedTotalCost()`
 
-          atom_to_site_cost_f : function, default=:function:`~casm.mapping.search.make_atom_to_site_cost`
+          atom_to_site_cost_f : function, default=:function:`~casm.mapping.mapsearch.make_atom_to_site_cost`
               Function used to calculate the elements of the assignment problem cost
-              matrix. Expected to match the same signature as :function:`~casm.mapping.search.make_atom_to_site_cost`.
+              matrix. Expected to match the same signature as :function:`~casm.mapping.mapsearch.make_atom_to_site_cost`.
               Possible atom-to-site mapping cost functions:
 
-              - :class:`~casm.mapping.search.WeightedTotalCost()`
+              - :class:`~casm.mapping.mapsearch.WeightedTotalCost()`
 
+          enable_remove_mean_displacement : bool, default=True
+              If true, the translation and displacements of an atom
+              mapping are adjusted consistently so that the mean displacment
+              is zero.
           infinity : float, default=1e20
               The value to use in the assignment problem cost matrix for
               unallowed atom-to-site mappings.
-
           cost_tol : float, default=1e20
               Tolerance for checking if mapping costs are approximately equal.
           )pbdoc")
       .def("front", &MappingSearch::front,
-           "Return a reference to the lowest cost MappingNode in the queue.")
+           "Returns a reference to the lowest cost MappingNode in the queue.")
       .def("back", &MappingSearch::back,
-           "Return a reference to the highest cost MappingNode in the queue.")
+           "Returns a reference to the highest cost MappingNode in the queue.")
       .def("pop_front", &MappingSearch::pop_front,
            "Erase the lowest cost MappingNode in the queue.")
       .def("pop_back", &MappingSearch::pop_back,
            "Erase the highest cost MappingNode in the queue.")
-      .def("size", &MappingSearch::size, "Return the current queue size.")
+      .def("size", &MappingSearch::size, "Returns the current queue size.")
       .def("make_and_insert_mapping_node",
            &MappingSearch::make_and_insert_mapping_node,
            py::arg("lattice_cost"), py::arg("lattice_mapping_data"),
@@ -648,7 +693,7 @@ PYBIND11_MODULE(search, m) {
           lattice_cost : float
               The cost of the lattice mapping that forms the context
               in which atom mappings are solved.
-          lattice_mapping_data : casm.mapping.search.LatticeMappingSearchData
+          lattice_mapping_data : casm.mapping.mapsearch.LatticeMappingSearchData
               Holds the lattice mapping and related data that forms the context
               in which atom mappings are solved.
           trial_translation_cart : array_like, shape=(3,)
@@ -668,11 +713,11 @@ PYBIND11_MODULE(search, m) {
           Make and insert sub-optimal mapping solutions
 
           The Murty algorithm is used to generate sub-optimal assignments
-          from the current lowest cost solution in the queue (available as :func:`~casm.mapping.search.MappingSearch.front`). The
+          from the current lowest cost solution in the queue (available as :func:`~casm.mapping.mapsearch.MappingSearch.front`). The
           resulting MappingNode are inserted into the MappingSearch queue.
           They are also inserted into the MappingSearch results, if they
           satisify the cost range and k-best criteria. Finally,
-          :func:`~casm.mapping.search.MappingSearch.pop_front` is called.
+          :func:`~casm.mapping.mapsearch.MappingSearch.pop_front` is called.
           )pbdoc");
 
 #ifdef VERSION_INFO

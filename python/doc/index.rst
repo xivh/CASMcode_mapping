@@ -15,7 +15,7 @@ Documentation
 
     Installation <installation>
     Usage <usage>
-    Reference <reference/casm/mapping/_autosummary/casm.mapping>
+    Reference <reference/casm/_autosummary/casm.mapping>
     Bibliography <bibliography>
     About casm-mapping <about>
 

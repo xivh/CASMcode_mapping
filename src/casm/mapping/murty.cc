@@ -230,6 +230,11 @@ void partition(std::multiset<Node> &node_set, AssignmentMethod assign_f,
   // sub-node 3: {node.forced_on + x0 + x1 + x2, node.forced_off + x3}
   // ...
 
+  if (node.unassigned_rows.size() == 1) {
+    // no sub-assignments in this case
+    return;
+  }
+
   Node subnode = node;
 
   // 'x' is a particular assignement {worker/row, task/column}

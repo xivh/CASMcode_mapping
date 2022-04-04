@@ -7,7 +7,7 @@ __version__ = "2.0.dev1"
 from pybind11 import get_cmake_dir
 # Available at setup time due to pyproject.toml
 from pybind11.setup_helpers import Pybind11Extension, build_ext
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 with open(os.path.join('README.md'), encoding='utf-8') as f:
     long_description = f.read()
@@ -21,33 +21,37 @@ with open(os.path.join('README.md'), encoding='utf-8') as f:
 #   Sort input source files if you glob sources to ensure bit-for-bit
 #   reproducible builds (https://github.com/pybind/python_example/pull/53)
 
+ext_modules_params = {
+    "define_macros": [
+        ('VERSION_INFO', __version__),
+    ],
+    "cxx_std":
+    17,
+    "library_dirs": [
+        '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/lib',
+    ],
+    "include_dirs": [
+        '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/include/casm/external',
+        '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/include'
+    ],
+    "extra_compile_args": [
+        '-D_LIBCPP_DISABLE_AVAILABILITY',
+        '--std=c++17',
+    ],
+    "extra_link_args": [
+        '-lcasm_global',
+        '-lcasm_crystallography',
+        '-lcasm_mapping',
+    ],
+}
+
 ext_modules = [
-    Pybind11Extension(
-        "casm.mapping", ["src/mapping.cpp"],
-        define_macros=[('VERSION_INFO', __version__)],
-        cxx_std=17,
-        library_dirs=[
-            '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/lib'
-        ],
-        include_dirs=[
-            '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/include/casm/external',
-            '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/include'
-        ],
-        extra_compile_args=['-D_LIBCPP_DISABLE_AVAILABILITY', '--std=c++17'],
-        extra_link_args=['-lcasm_global', '-lcasm_crystallography', '-lcasm_mapping']),
-    Pybind11Extension(
-        "casm.mapping.search", ["src/mapping_search.cpp"],
-        define_macros=[('VERSION_INFO', __version__)],
-        cxx_std=17,
-        library_dirs=[
-            '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/lib'
-        ],
-        include_dirs=[
-            '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/include/casm/external',
-            '/Users/bpuchala/.local/conda/envs/casm_modules_2.X/include'
-        ],
-        extra_compile_args=['-D_LIBCPP_DISABLE_AVAILABILITY', '--std=c++17'],
-        extra_link_args=['-lcasm_global', '-lcasm_crystallography', '-lcasm_mapping']),
+    Pybind11Extension("casm.mapping.info", ["src/mapping_info.cpp"],
+                      **ext_modules_params),
+    Pybind11Extension("casm.mapping.methods", ["src/mapping_methods.cpp"],
+                      **ext_modules_params),
+    Pybind11Extension("casm.mapping.mapsearch", ["src/mapping_mapsearch.cpp"],
+                      **ext_modules_params),
 ]
 
 setup(
@@ -60,6 +64,7 @@ setup(
     author='CASM developers',
     author_email='casm-developers@lists.engr.ucsb.edu',
     license='LGPL2.1+',
+    packages=find_namespace_packages(include=['casm.*']),
     install_requires=["pybind11", "numpy"],
     classifiers=[
         'Development Status :: 5 - Production/Stable',

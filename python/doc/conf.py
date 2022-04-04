@@ -160,8 +160,8 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, 'casm-mapping', u'casm-mapping Documentation', [author], 1)
-             ]
+man_pages = [(master_doc, 'casm-mapping', u'casm-mapping Documentation',
+              [author], 1)]
 
 # -- Options for Texinfo output -------------------------------------------
 
@@ -169,6 +169,6 @@ man_pages = [(master_doc, 'casm-mapping', u'casm-mapping Documentation', [author
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'casm-mapping', u'casm-mapping Documentation', author, 'casm-mapping',
-     'One line description of project.', 'Miscellaneous'),
+    (master_doc, 'casm-mapping', u'casm-mapping Documentation', author,
+     'casm-mapping', 'One line description of project.', 'Miscellaneous'),
 ]

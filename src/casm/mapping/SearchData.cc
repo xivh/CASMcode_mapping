@@ -214,7 +214,6 @@ std::vector<Eigen::Vector3d> make_trial_translations(
   Index N_atom = atom_type.size();
   Index best_atom_index = 0;
   Index min_N_allowed_sites = prim_allowed_atom_types.size() + 1;
-  std::vector<Index> prim_allowed_site_index;
   for (Index atom_index = 0; atom_index != N_atom; ++atom_index) {
     Index N_allowed_sites = 0;
     for (auto const &allowed_atom_types : prim_allowed_atom_types) {
@@ -582,7 +581,7 @@ std::vector<Eigen::Vector3d> make_trial_translations(
 /// \param atom_type The atom type.
 /// \param allowed_atom_types The atom types allowed on the site
 /// \param infinity The value to use for unallowed mappings
-double make_atom_mapping_cost(
+double make_atom_to_site_cost(
     Eigen::Vector3d const &displacement, std::string const &atom_type,
     std::vector<std::string> const &allowed_atom_types, double infinity) {
   // if vacancy is allowed on site, return 0.0; else return infinity
