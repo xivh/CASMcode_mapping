@@ -486,5 +486,18 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
   return result;
 }
 
+/// \brief Return MappingSearch results combined with overflow
+std::vector<std::pair<StructureMappingCost, StructureMapping>> combined_results(
+    MappingSearch const &search) {
+  std::vector<std::pair<StructureMappingCost, StructureMapping>> results;
+  for (auto const &pair : search.results) {
+    results.emplace_back(pair);
+  }
+  for (auto const &pair : search.overflow) {
+    results.emplace_back(pair);
+  }
+  return results;
+}
+
 }  // namespace mapping
 }  // namespace CASM

@@ -240,6 +240,10 @@ struct MappingSearch {
   std::vector<std::multiset<MappingNode>::iterator> partition();
 };
 
+/// \brief Return MappingSearch results combined with overflow
+std::vector<std::pair<StructureMappingCost, StructureMapping>> combined_results(
+    MappingSearch const &search);
+
 /// --- Inline implementation ---
 
 /// \brief Return lowest total cost MappingNode in the queue

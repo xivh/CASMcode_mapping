@@ -3,6 +3,9 @@
 #include "casm/crystallography/BasicStructure.hh"
 #include "casm/crystallography/BasicStructureTools.hh"
 #include "casm/crystallography/SimpleStructureTools.hh"
+#include "casm/crystallography/SymTools.hh"
+#include "casm/crystallography/SymTypeComparator.hh"
+#include "casm/misc/UnaryCompare.hh"
 
 namespace CASM {
 namespace mapping {
@@ -32,6 +35,43 @@ std::vector<xtal::SymOp> make_structure_factor_group(
     prim.push_back(site, CART);
   }
   return xtal::make_factor_group(prim);
+}
+
+std::vector<xtal::SymOp> make_superstructure_factor_group(
+    xtal::Lattice const &prim_lattice,
+    std::vector<xtal::SymOp> const &prim_factor_group,
+    xtal::Lattice const &super_lattice) {
+  double tol = prim_lattice.tol();
+
+  auto all_lattice_points =
+      make_lattice_points(prim_lattice, super_lattice, tol);
+
+  std::vector<xtal::SymOp> point_group = make_point_group(super_lattice);
+  std::vector<xtal::SymOp> factor_group;
+
+  for (xtal::SymOp const &prim_op : prim_factor_group) {
+    // If the primitive factor group operation with translations removed can't
+    // map the original structure's lattice onto itself, then ditch that
+    // operation.
+    UnaryCompare_f<xtal::SymOpMatrixCompare_f> equals_prim_op_ignoring_trans(
+        prim_op, tol);
+    if (std::find_if(point_group.begin(), point_group.end(),
+                     equals_prim_op_ignoring_trans) == point_group.end()) {
+      continue;
+    }
+
+    // Otherwise take that factor operation, and expand it by adding additional
+    // translations within the structure
+    for (xtal::UnitCell const &lattice_point : all_lattice_points) {
+      xtal::Coordinate lattice_point_coordinate = make_superlattice_coordinate(
+          lattice_point, prim_lattice, super_lattice);
+      factor_group.emplace_back(
+          xtal::SymOp::translation_operation(lattice_point_coordinate.cart()) *
+          prim_op);
+    }
+  }
+  sort_factor_group(factor_group, super_lattice);
+  return factor_group;
 }
 
 /// \brief Return prim site coordinates as columns of
@@ -77,6 +117,20 @@ std::vector<std::vector<std::string>> make_supercell_allowed_atom_types(
     supercell_allowed_atom_types.push_back(prim_allowed_atom_types[b]);
   }
   return supercell_allowed_atom_types;
+}
+
+/// \brief Return atom types on each supercell site
+std::vector<std::string> make_supercell_atom_types(
+    xtal::UnitCellCoordIndexConverter const &unitcellcoord_index_converter,
+    std::vector<std::string> const &prim_atom_types) {
+  Index N_supercell_site = unitcellcoord_index_converter.total_sites();
+  std::vector<std::string> supercell_atom_types;
+  for (Index l = 0; l < N_supercell_site; ++l) {
+    xtal::UnitCellCoord const &uccoord = unitcellcoord_index_converter(l);
+    Index b = uccoord.sublattice();
+    supercell_atom_types.push_back(prim_atom_types[b]);
+  }
+  return supercell_atom_types;
 }
 
 /// \brief Return minimum length displacement (atom_cart - site_cart),
@@ -432,7 +486,9 @@ StructureSearchData::StructureSearchData(
                                        lattice, atom_coordinate_cart, atom_type)
                                  : std::move(*override_structure_factor_group)),
       structure_crystal_point_group(xtal::make_crystal_point_group(
-          structure_factor_group, lattice.tol())) {
+          structure_factor_group, lattice.tol())),
+      prim_structure_data(nullptr),
+      transformation_matrix_to_super(Eigen::Matrix3l::Identity()) {
   if (atom_type.size() != atom_coordinate_cart.cols()) {
     throw std::runtime_error(
         "Error in StructureSearchData: atom_type.size() != "
@@ -444,6 +500,46 @@ StructureSearchData::StructureSearchData(
         "structure_factor_group.");
   }
 }
+
+/// \brief Constructor - For superstructures
+///
+/// \param _prim_structure_data The search data representing a
+///     primitive structure
+/// \param _transformation_matrix_to_super The transformation matrix
+///     that gives this structure's lattice in terms of the
+///     primitive structure's lattice,
+///     `_prim_structure_data->lattice()`.
+StructureSearchData::StructureSearchData(
+    std::shared_ptr<StructureSearchData const> _prim_structure_data,
+    Eigen::Matrix3l const &_transformation_matrix_to_super)
+    : StructureSearchData(
+          std::move(_prim_structure_data), _transformation_matrix_to_super,
+          xtal::UnitCellCoordIndexConverter(_transformation_matrix_to_super,
+                                            _prim_structure_data->N_atom)) {}
+
+/// \brief Private constructor
+///
+/// To make use of temporary UnitCellCoordIndexConverter
+StructureSearchData::StructureSearchData(
+    std::shared_ptr<StructureSearchData const> _prim_structure_data,
+    Eigen::Matrix3l const &_transformation_matrix_to_super,
+    xtal::UnitCellCoordIndexConverter const &_unitcellcoord_index_converter)
+    : lattice(xtal::make_superlattice(_prim_structure_data->lattice,
+                                      _transformation_matrix_to_super)),
+      N_atom(_unitcellcoord_index_converter.total_sites()),
+      atom_coordinate_cart(mapping_impl::make_supercell_site_coordinate_cart(
+          _unitcellcoord_index_converter,
+          _prim_structure_data->atom_coordinate_cart,
+          _prim_structure_data->lattice)),
+      atom_type(mapping_impl::make_supercell_atom_types(
+          _unitcellcoord_index_converter, _prim_structure_data->atom_type)),
+      structure_factor_group(mapping_impl::make_superstructure_factor_group(
+          _prim_structure_data->lattice,
+          _prim_structure_data->structure_factor_group, lattice)),
+      structure_crystal_point_group(xtal::make_crystal_point_group(
+          structure_factor_group, lattice.tol())),
+      prim_structure_data(_prim_structure_data),
+      transformation_matrix_to_super(_transformation_matrix_to_super) {}
 
 /// \brief Constructor
 ///

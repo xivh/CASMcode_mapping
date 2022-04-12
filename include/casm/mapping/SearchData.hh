@@ -42,6 +42,11 @@ struct StructureSearchData {
                       std::optional<std::vector<xtal::SymOp>>
                           override_structure_factor_group = std::nullopt);
 
+  /// \brief Constructor - For superstructures
+  StructureSearchData(
+      std::shared_ptr<StructureSearchData const> _prim_structure_data,
+      Eigen::Matrix3l const &_transformation_matrix_to_super);
+
   /// \brief The structure's lattice
   xtal::Lattice const lattice;
 
@@ -61,6 +66,22 @@ struct StructureSearchData {
   /// \brief Symmetry operations that may be used to skip symmetrically
   ///     equivalent lattice mappings
   std::vector<xtal::SymOp> const structure_crystal_point_group;
+
+  /// \brief Pointer to primitive structure this represents a superstructure of
+  ///
+  /// Will be equal to nullptr if this is the primitive structure
+  std::shared_ptr<StructureSearchData const> const prim_structure_data;
+
+  /// \brief Transformation matrix from `prim_structure_data->lattice()`
+  ///     to this->lattice, if not nullptr, else identity.
+  Eigen::Matrix3l const transformation_matrix_to_super;
+
+ private:
+  /// \brief Private constructor
+  StructureSearchData(
+      std::shared_ptr<StructureSearchData const> _prim_structure_data,
+      Eigen::Matrix3l const &_transformation_matrix_to_super,
+      xtal::UnitCellCoordIndexConverter const &_unitcellcoord_index_converter);
 };
 
 /// \brief Holds prim-related data used for mapping searches
