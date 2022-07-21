@@ -1,8 +1,8 @@
 
-casm-mapping: The Python interface for CASM structure mappings
-==============================================================
+libcasm-mapping: The Python interface for CASM structure mappings
+=================================================================
 
-The casm.mapping module is a Python interface to the mapping classes and methods in the CASM::mapping namespace of the CASM C++ libraries. This includes:
+The libcasm.mapping module is a Python interface to the mapping classes and methods in the CASM::mapping namespace of the CASM C++ libraries. This includes:
 
 - Methods for finding the mapping transformations that relate one structure to another
 
@@ -15,11 +15,11 @@ Documentation
 
     Installation <installation>
     Usage <usage>
-    Reference <reference/casm/_autosummary/casm.mapping>
+    Reference <reference/libcasm/_autosummary/libcasm.mapping>
     Bibliography <bibliography>
-    About casm-mapping <about>
+    About libcasm-mapping <about>
 
 
-casm-mapping is available on GitHub_.
+libcasm-mapping is available on GitHub_.
 
 .. _GitHub: https://github.com/prisms-center/CASMcode_mapping

@@ -46,16 +46,16 @@ ext_modules_params = {
 }
 
 ext_modules = [
-    Pybind11Extension("casm.mapping.info", ["src/mapping_info.cpp"],
+    Pybind11Extension("libcasm.mapping.info", ["src/mapping_info.cpp"],
                       **ext_modules_params),
-    Pybind11Extension("casm.mapping.methods", ["src/mapping_methods.cpp"],
+    Pybind11Extension("libcasm.mapping.methods", ["src/mapping_methods.cpp"],
                       **ext_modules_params),
-    Pybind11Extension("casm.mapping.mapsearch", ["src/mapping_mapsearch.cpp"],
+    Pybind11Extension("libcasm.mapping.mapsearch", ["src/mapping_mapsearch.cpp"],
                       **ext_modules_params),
 ]
 
 setup(
-    name='casm-mapping',
+    name='libcasm-mapping',
     version=__version__,
     url='https://github.com/prisms-center/CASMcode_mapping',
     description='CASM structure mapping Python interface',
@@ -64,7 +64,7 @@ setup(
     author='CASM developers',
     author_email='casm-developers@lists.engr.ucsb.edu',
     license='LGPL2.1+',
-    packages=find_namespace_packages(include=['casm.*']),
+    packages=find_namespace_packages(include=['libcasm.*']),
     install_requires=["pybind11", "numpy"],
     classifiers=[
         'Development Status :: 5 - Production/Stable',

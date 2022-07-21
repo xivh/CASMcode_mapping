@@ -33,14 +33,14 @@ PYBIND11_MODULE(info, m) {
   m.doc() = R"pbdoc(
         Data structures for representing mapping transformations
 
-        casm.mapping.info
-        -----------------
+        libcasm.mapping.info
+        --------------------
 
-        The casm.mapping.info module contains data structures representing mapping
+        The libcasm.mapping.info module contains data structures representing mapping
         transformations.
 
     )pbdoc";
-  py::module::import("casm.xtal");
+  py::module::import("libcasm.xtal");
 
   py::class_<LatticeMapping>(m, "LatticeMapping", R"pbdoc(
       A mapping between two lattices
@@ -139,7 +139,7 @@ PYBIND11_MODULE(info, m) {
      A mapping of atoms between two structures
 
      An atom mapping is defined in the context of an existing
-     :class:`~casm.mapping.LatticeMapping`. An atom mapping has the form:
+     :class:`~libcasm.mapping.LatticeMapping`. An atom mapping has the form:
 
      .. math::
 
@@ -149,16 +149,16 @@ PYBIND11_MODULE(info, m) {
 
      - :math:`\vec{r_1}(i)` is the Cartesian coordinates of the i-th atom in
        the parent superstructure. The parent superstructure can be constructed
-       using `casm.xtal.make_superstructure`:
+       using `libcasm.xtal.make_superstructure`:
 
        .. code-block:: Python
 
-           import casm.xtal as xtal
+           import libcasm.xtal as xtal
            parent_superstructure = xtal.make_superstructure(
                T * N, parent_structure)
 
        where :math:`T`, and :math:`N` are from a
-       :class:`~casm.mapping.LatticeMapping`. Then the i-th atom coordinate,
+       :class:`~libcasm.mapping.LatticeMapping`. Then the i-th atom coordinate,
        :math:`\vec{r_1}(i)`, is equal to:
 
        .. code-block:: Python
@@ -168,12 +168,12 @@ PYBIND11_MODULE(info, m) {
      - :math:`\vec{r_2}(i)` is the Cartesian coordinates of i-th atom in
        the child structure.
      - :math:`F` is the parent-to-child deformation gradient tensor from a
-       :class:`~casm.mapping.LatticeMapping`.
+       :class:`~libcasm.mapping.LatticeMapping`.
      - :math:`p_i` is a permutation vector, specifying which atom in the
        child structure (:math:`p_i`) is mapped to the i-th site of the parent
        superstructure. Values of :math:`p_i` greater than the number of atoms
        in the child structure indicate inferred vacancies in mappings to
-       :class:`~casm.xtal.Prim` with vacancies allowed.
+       :class:`~libcasm.xtal.Prim` with vacancies allowed.
      - :math:`\vec{t}` is a translation vector, in Cartesian coordinates, usually
        chosen so the average displacement is zero.
      - :math:`\vec{d}(i)`: The Cartesian displacement associated with the atom
@@ -220,9 +220,9 @@ PYBIND11_MODULE(info, m) {
 
     A structure mapping is a combination of:
 
-    - A :class:`~casm.xtal.Prim`
-    - A :class:`~casm.mapping.LatticeMapping`
-    - An :class:`~casm.mapping.AtomMapping`
+    - A :class:`~libcasm.xtal.Prim`
+    - A :class:`~libcasm.mapping.LatticeMapping`
+    - An :class:`~libcasm.mapping.AtomMapping`
 
     See those class descriptions for details of the mappings.
 
@@ -234,24 +234,24 @@ PYBIND11_MODULE(info, m) {
           Parameters
           ----------
 
-          prim : casm.xtal.Prim
-              A :class:`~casm.xtal.Prim`
-          lattice_mapping : casm.mapping.LatticeMapping
-              A :class:`~casm.mapping.LatticeMapping`
-          atom_mapping : casm.mapping.AtomMapping
-              An :class:`~casm.mapping.AtomMapping`
+          prim : libcasm.xtal.Prim
+              A :class:`~libcasm.xtal.Prim`
+          lattice_mapping : libcasm.mapping.LatticeMapping
+              A :class:`~libcasm.mapping.LatticeMapping`
+          atom_mapping : libcasm.mapping.AtomMapping
+              An :class:`~libcasm.mapping.AtomMapping`
           )pbdoc")
       .def(
           "prim", [](StructureMapping const &m) { return *m.shared_prim; },
-          "Returns the :class:`~casm.xtal.Prim`.")
+          "Returns the :class:`~libcasm.xtal.Prim`.")
       .def(
           "lattice_mapping",
           [](StructureMapping const &m) { return m.lattice_mapping; },
-          "Returns the :class:`~casm.mapping.LatticeMapping`.")
+          "Returns the :class:`~libcasm.mapping.LatticeMapping`.")
       .def(
           "atom_mapping",
           [](StructureMapping const &m) { return m.atom_mapping; },
-          "Returns the :class:`~casm.mapping.AtomMapping`.");
+          "Returns the :class:`~libcasm.mapping.AtomMapping`.");
 
   m.def(
       "has_same_prim",
@@ -269,9 +269,9 @@ PYBIND11_MODULE(info, m) {
 
       Parameters
       ----------
-      first : casm.mapping.StructureMapping
+      first : libcasm.mapping.StructureMapping
           The first StructureMapping
-      second : casm.mapping.StructureMapping
+      second : libcasm.mapping.StructureMapping
           The second StructureMapping
 
       Returns
@@ -288,9 +288,9 @@ PYBIND11_MODULE(info, m) {
    - A lattice mapping cost, lattice_cost
    - An atom mapping cost, atom_cost
 
-   The total structure mapping cost, total_cost, is lattice_cost_weight*lattice_cost + (1.0 - lattice_cost_weight)*atom_cost, where lattice_cost_weight is an input to the :func:`~casm.mapping.map_structures` method.
+   The total structure mapping cost, total_cost, is lattice_cost_weight*lattice_cost + (1.0 - lattice_cost_weight)*atom_cost, where lattice_cost_weight is an input to the :func:`~libcasm.mapping.map_structures` method.
 
-   See those :class:`~casm.mapping.LatticeMapping` and :class:`~casm.mapping.AtomMapping` for details of the lattice and atom mappings.
+   See those :class:`~libcasm.mapping.LatticeMapping` and :class:`~libcasm.mapping.AtomMapping` for details of the lattice and atom mappings.
 
    )pbdoc")
       .def(py::init<double, double, double>(), py::arg("lattice_cost"),

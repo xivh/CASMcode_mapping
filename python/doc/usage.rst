@@ -1,4 +1,4 @@
 Usage
 =====
 
-Using casm-mapping: TODO
+Using libcasm-mapping: TODO

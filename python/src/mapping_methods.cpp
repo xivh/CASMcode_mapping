@@ -32,15 +32,15 @@ PYBIND11_MODULE(methods, m) {
   m.doc() = R"pbdoc(
         Lattice, atom, and structure mapping methods
 
-        casm.mapping.methods
-        --------------------
+        libcasm.mapping.methods
+        -----------------------
 
-        The casm.mapping.methods module contains lattice, atom, and
+        The libcasm.mapping.methods module contains lattice, atom, and
         structure mapping methods.
 
     )pbdoc";
-  py::module::import("casm.xtal");
-  py::module::import("casm.mapping.info");
+  py::module::import("libcasm.xtal");
+  py::module::import("libcasm.mapping.info");
 
   m.def("map_lattices", &map_lattices, R"pbdoc(
       Find mappings between two lattices
@@ -129,19 +129,19 @@ PYBIND11_MODULE(methods, m) {
 
       Parameters
       ----------
-      lattice1 : casm.xtal.Lattice
+      lattice1 : libcasm.xtal.Lattice
           The reference "parent" lattice, :math:`L_1`.
-      lattice2 : casm.xtal.Lattice
+      lattice2 : libcasm.xtal.Lattice
           The "child" lattice, :math:`L_2`.
       transformation_matrix_to_super : Optional[array_like, shape=(3,3)], optional
           An approximately integer transformation matrix that generates a
           superlattice of :math:`L_1`. The default value is the identity
           matrix.
-      lattice1_point_group : List[casm.xtal.SymOp], optional
+      lattice1_point_group : List[libcasm.xtal.SymOp], optional
           Used to skip reorientation matrices that result in symmetrically
           equivalent mappings. The default (empty), is equivalent to only
           including the identity operation.
-      lattice2_point_group : List[casm.xtal.SymOp], optional
+      lattice2_point_group : List[libcasm.xtal.SymOp], optional
           Used to skip reorientation matrices that result in symmetrically
           equivalent mappings. The default (empty), is equivalent to just
           including the identity operation.
@@ -168,9 +168,9 @@ PYBIND11_MODULE(methods, m) {
 
       Returns
       -------
-      lattice_mappings : List[Tuple[float, casm.mapping.LatticeMapping]]
+      lattice_mappings : List[Tuple[float, libcasm.mapping.LatticeMapping]]
           A list of tuple of lattice mapping cost (float) and
-          `casm.mapping.LatticeMapping`, giving possible lattice
+          `libcasm.mapping.LatticeMapping`, giving possible lattice
           mappings, sorted by lattice mapping cost.
       )pbdoc",
         py::arg("lattice1"), py::arg("lattice2"),
@@ -206,19 +206,19 @@ PYBIND11_MODULE(methods, m) {
 
       Parameters
       ----------
-      prim : casm.xtal.Prim
+      prim : libcasm.xtal.Prim
           The reference "parent" structure, with lattice :math:`L_1`,
           represented as Prim, with occupation DoF indicating which atom
           types are allowed to map to each basis site.
-      structure : casm.xtal.Lattice
+      structure : libcasm.xtal.Lattice
           The "child" structure, with lattice :math:`L_2`.
       max_vol : int
           The maximum parent superstructure volume to consider, as a
           multiple of the parent structure volume.
-      prim_factor_group : List[casm.xtal.SymOp], optional
+      prim_factor_group : List[libcasm.xtal.SymOp], optional
           Used to skip symmetrically equivalent mappings. The default
           (empty), is equivalent to only including the identity operation.
-      structure_factor_group : List[casm.xtal.SymOp], optional
+      structure_factor_group : List[libcasm.xtal.SymOp], optional
           Used to skip symmetrically equivalent mappings. The default
           (empty), is equivalent to just including the identity operation.
       min_vol : int, default=1
@@ -248,9 +248,9 @@ PYBIND11_MODULE(methods, m) {
 
       Returns
       -------
-      structure_mappings : List[Tuple[casm.mapping.StructureMappingCost, casm.mapping.StructureMapping]]
-          A list of tuple of :class:`~casm.mapping.StructureMappingCost`
-          and `casm.mapping.StructureMapping`, giving possible structure
+      structure_mappings : List[Tuple[libcasm.mapping.StructureMappingCost, libcasm.mapping.StructureMapping]]
+          A list of tuple of :class:`~libcasm.mapping.StructureMappingCost`
+          and `libcasm.mapping.StructureMapping`, giving possible structure
           mappings, sorted by total cost.
       )pbdoc",
         py::arg("prim"), py::arg("structure"), py::arg("max_vol"),
@@ -314,16 +314,16 @@ PYBIND11_MODULE(methods, m) {
 
       Parameters
       ----------
-      prim : casm.xtal.Prim
+      prim : libcasm.xtal.Prim
           The reference "parent" structure, with lattice :math:`L_1`,
           represented as Prim, with occupation DoF indicating which atom
           types are allowed to map to each basis site.
-      structure : casm.xtal.Lattice
+      structure : libcasm.xtal.Lattice
           The "child" structure, with lattice :math:`L_2`.
-      lattice_mapping : casm.mapping.LatticeMapping
+      lattice_mapping : libcasm.mapping.LatticeMapping
           Defines the lattice mapping from the "parent" structure to
           the "child" structure.
-      prim_factor_group : List[casm.xtal.SymOp], optional
+      prim_factor_group : List[libcasm.xtal.SymOp], optional
           Used to skip symmetrically equivalent mappings. The default
           (empty), is equivalent to only including the identity operation.
       min_cost : float, default=0.
@@ -343,8 +343,8 @@ PYBIND11_MODULE(methods, m) {
 
       Returns
       -------
-      atom_mappings : List[Tuple[float, casm.mapping.AtomMapping]]
-          A list of tuple of atom_cost and `casm.mapping.AtomMapping`,
+      atom_mappings : List[Tuple[float, libcasm.mapping.AtomMapping]]
+          A list of tuple of atom_cost and `libcasm.mapping.AtomMapping`,
           giving possible atom mappings, sorted by atom mapping cost.
       )pbdoc",
         py::arg("prim"), py::arg("structure"), py::arg("lattice_mapping"),

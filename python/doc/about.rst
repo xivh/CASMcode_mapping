@@ -1,7 +1,7 @@
-About casm-mapping
-==================
+About libcasm-mapping
+=====================
 
-casm-mapping is part of the CASM project developed by the `Van der Ven group`_, originally at the University of Michigan and currently at the University of California Santa Barbara.
+libcasm-mapping is part of the CASM project developed by the `Van der Ven group`_, originally at the University of Michigan and currently at the University of California Santa Barbara.
 
 This package provides a Python interface to lattice and crystal structure mapping methods, in particular as described by :cite:t:`THOMAS2021a`.
 

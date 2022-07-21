@@ -28,7 +28,7 @@ Building documentation
 
 Install documentation requirements:
 
-    pip -r doc_requirements.txt
+    pip install -r doc_requirements.txt
 
 Install `casm-mapping`
 

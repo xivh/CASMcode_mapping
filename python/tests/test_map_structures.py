@@ -1,7 +1,7 @@
 import math
 import numpy as np
-import casm.mapping.methods as mapmethods
-import casm.xtal as xtal
+import libcasm.mapping.methods as mapmethods
+import libcasm.xtal as xtal
 
 
 def test_map_structures_0():
