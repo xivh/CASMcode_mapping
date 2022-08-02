@@ -1,6 +1,9 @@
 #ifndef CASM_mapping_SearchData
 #define CASM_mapping_SearchData
 
+#include <memory>
+#include <optional>
+
 #include "casm/crystallography/Lattice.hh"
 #include "casm/crystallography/LinearIndexConverter.hh"
 #include "casm/crystallography/SymType.hh"

@@ -1,6 +1,7 @@
 #ifndef CASM_mapping_StrucMapCalculatorInterface
 #define CASM_mapping_StrucMapCalculatorInterface
 
+#include <memory>
 #include <iostream>
 #include <unordered_set>
 #include <vector>
