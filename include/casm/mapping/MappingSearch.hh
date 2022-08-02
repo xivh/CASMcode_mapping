@@ -3,6 +3,8 @@
 
 #include <map>
 #include <set>
+#include <optional>
+#include <memory>
 
 #include "casm/mapping/AtomMapping.hh"
 #include "casm/mapping/LatticeMapping.hh"

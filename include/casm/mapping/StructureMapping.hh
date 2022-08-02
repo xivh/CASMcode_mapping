@@ -1,6 +1,8 @@
 #ifndef CASM_mapping_StructureMapping
 #define CASM_mapping_StructureMapping
 
+#include <memory>
+
 #include "casm/mapping/AtomMapping.hh"
 #include "casm/mapping/LatticeMapping.hh"
 
