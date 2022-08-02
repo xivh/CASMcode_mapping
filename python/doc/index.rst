@@ -15,7 +15,7 @@ Documentation
 
     Installation <installation>
     Usage <usage>
-    Reference <reference/libcasm/_autosummary/libcasm.mapping>
+    Reference <reference/libcasm/index>
     Bibliography <bibliography>
     About libcasm-mapping <about>
 
