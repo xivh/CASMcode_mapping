@@ -2,6 +2,7 @@
 
 #include "casm/crystallography/BasicStructure.hh"
 #include "casm/crystallography/BasicStructureTools.hh"
+#include "casm/crystallography/SimpleStructure.hh"
 #include "casm/crystallography/SimpleStructureTools.hh"
 #include "casm/crystallography/SymTools.hh"
 #include "casm/crystallography/SymTypeComparator.hh"
@@ -146,7 +147,7 @@ Eigen::Vector3d fast_pbc_displacement_cart(xtal::Lattice const &lattice,
   Eigen::Vector3d disp_frac = lattice.inv_lat_column_mat() * disp_cart;
   Eigen::Vector3d frac_lattice_translation = lround(disp_frac).cast<double>();
   disp_frac -= frac_lattice_translation;
-  return lattice.inv_lat_column_mat() * disp_frac;
+  return lattice.lat_column_mat() * disp_frac;
 };
 
 /// \brief Return minimum length displacement (atom_cart - site_cart),
@@ -232,10 +233,11 @@ bool is_new_unique_translation(
 /// Trial translations are found by choosing the fewest valid
 /// atom type -> allowed site translations.
 ///
-/// \param atom_coordinate_cart_in_supercell Matrix of shape=(3,N) containing
-///     the Cartesian coordinates of the child structure atoms,
-///     in the state after the inverse lattice mapping deformation is
-///     applied (\f$F^{-1}\vec{r_2}\f$). S1 refers to the ideal
+/// \param atom_coordinate_cart_in_supercell Matrix of
+///     shape=(3,N_atom) containing the Cartesian coordinates of the
+///     child structure atoms, in the state after the inverse
+///     lattice mapping deformation is applied
+///     (\f$F^{-1}\vec{r_2}\f$). S1 refers to the ideal
 ///     superlattice, S1 = L1 * T * N.
 /// \param atom_type Vector of size=N_atom containing the
 ///     types of the atoms being mapped. May include vacancies.
@@ -329,8 +331,8 @@ std::vector<Eigen::Vector3d> make_trial_translations(
 ///     under periodic boundary conditions.
 /// \param site_coordinate_cart A shape=(3,N_site) matrix of Cartesian
 ///     coordinates of the sites.
-/// \param atom_coordinate_cart_in_supercell Matrix of shape=(3,N) containing
-///     the Cartesian coordinates of the child structure atoms,
+/// \param atom_coordinate_cart_in_supercell Matrix of shape=(3,N_atom)
+///     containing the Cartesian coordinates of the child structure atoms,
 ///     in the state after the inverse lattice mapping deformation is
 ///     applied (\f$F^{-1}\vec{r_2}\f$). S1 refers to the ideal
 ///     superlattice, S1 = L1 * T * N.
@@ -540,6 +542,18 @@ StructureSearchData::StructureSearchData(
           structure_factor_group, lattice.tol())),
       prim_structure_data(_prim_structure_data),
       transformation_matrix_to_super(_transformation_matrix_to_super) {}
+
+/// \brief Construct a xtal::SimpleStructure corresponding to
+/// StructureSearchData
+xtal::SimpleStructure make_structure(
+    StructureSearchData const &structure_data) {
+  xtal::SimpleStructure structure;
+  structure.lat_column_mat = structure_data.lattice.lat_column_mat();
+  structure.atom_info.resize(structure_data.N_atom);
+  structure.atom_info.coords = structure_data.atom_coordinate_cart;
+  structure.atom_info.names = structure_data.atom_type;
+  return structure;
+}
 
 /// \brief Constructor
 ///

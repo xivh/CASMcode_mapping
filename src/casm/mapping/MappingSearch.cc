@@ -63,26 +63,36 @@ AtomMapping make_atom_mapping_from_assignment(
   // atom[perm[i]] -> is assigned to -> site[i]
   auto const &perm = assignment;
 
-  // get displacements
-  Eigen::MatrixXd disp(3, N_site);
-  for (Index site_index = 0; site_index < N_site; ++site_index) {
-    disp.col(site_index) = site_displacements[site_index][perm[site_index]];
-  }
-
+  Eigen::Vector3d mean_disp = Eigen::Vector3d::Zero();
   if (enable_remove_mean_displacement) {
     // calculate mean displacement
-    Eigen::Vector3d mean_disp = Eigen::Vector3d::Zero();
+    double n = 0.0;
     for (Index site_index = 0; site_index < N_site; ++site_index) {
-      mean_disp += disp.col(site_index);
+      Index atom_index = perm[site_index];
+      if (atom_index >= site_displacements[site_index].size()) {
+        // implied vacancies - do not include in mean_disp
+        continue;
+      }
+      mean_disp += site_displacements[site_index][atom_index];
+      n += 1.0;
     }
-    mean_disp /= double(N_site);
-
-    // subtract mean displacement
-    for (Index site_index = 0; site_index < N_site; ++site_index) {
-      disp.col(site_index) -= mean_disp;
-    }
-    trial_translation -= mean_disp;
+    mean_disp /= n;
   }
+
+  // get displacements
+  Eigen::MatrixXd disp = Eigen::MatrixXd::Zero(3, N_site);
+  for (Index site_index = 0; site_index < N_site; ++site_index) {
+    Index atom_index = perm[site_index];
+    if (atom_index >= site_displacements[site_index].size()) {
+      // implied vacancies - keep disp == 0
+      continue;
+    }
+    disp.col(site_index) =
+        site_displacements[site_index][atom_index] - mean_disp;
+  }
+
+  // adjust trial_translation
+  trial_translation -= mean_disp;
 
   return AtomMapping(disp, perm, deformation_gradient * trial_translation);
 }
@@ -91,7 +101,7 @@ AtomMapping make_atom_mapping_from_assignment(
 ///     with a solved sub_assignment
 ///
 /// When constructing the AtomMapping component of a MappingNode,
-/// this removes mean displacements and makes the proper
+/// this removes mean displacements (if enabled) and makes the proper
 /// AtomMapping displacements and translation. It calculates
 /// the atom_cost and total_cost using the parameters specified
 /// at MappingSearch construction time.
@@ -379,7 +389,7 @@ MappingSearch::MappingSearch(double _min_cost, double _max_cost, int _k_best,
                              AtomCostFunction _atom_cost_f,
                              TotalCostFunction _total_cost_f,
                              AtomToSiteCostFunction _atom_to_site_cost_f,
-                             bool enable_remove_mean_displacement,
+                             bool _enable_remove_mean_displacement,
                              double _infinity, double _cost_tol)
     : min_cost(_min_cost),
       max_cost(_max_cost),
@@ -387,6 +397,7 @@ MappingSearch::MappingSearch(double _min_cost, double _max_cost, int _k_best,
       atom_cost_f(_atom_cost_f),
       total_cost_f(_total_cost_f),
       atom_to_site_cost_f(_atom_to_site_cost_f),
+      enable_remove_mean_displacement(_enable_remove_mean_displacement),
       infinity(_infinity),
       cost_tol(_cost_tol) {}
 
@@ -487,14 +498,13 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
 }
 
 /// \brief Return MappingSearch results combined with overflow
-std::vector<std::pair<StructureMappingCost, StructureMapping>> combined_results(
-    MappingSearch const &search) {
-  std::vector<std::pair<StructureMappingCost, StructureMapping>> results;
+StructureMappingResults combined_results(MappingSearch const &search) {
+  StructureMappingResults results;
   for (auto const &pair : search.results) {
-    results.emplace_back(pair);
+    results.data.emplace_back(pair);
   }
   for (auto const &pair : search.overflow) {
-    results.emplace_back(pair);
+    results.data.emplace_back(pair);
   }
   return results;
 }

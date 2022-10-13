@@ -14,7 +14,8 @@ namespace CASM {
 
 namespace xtal {
 class BasicStructure;
-}
+class SimpleStructure;
+}  // namespace xtal
 
 namespace mapping {
 
@@ -86,6 +87,10 @@ struct StructureSearchData {
       Eigen::Matrix3l const &_transformation_matrix_to_super,
       xtal::UnitCellCoordIndexConverter const &_unitcellcoord_index_converter);
 };
+
+/// \brief Construct a xtal::SimpleStructure corresponding to
+/// StructureSearchData
+xtal::SimpleStructure make_structure(StructureSearchData const &structure_data);
 
 /// \brief Holds prim-related data used for mapping searches
 struct PrimSearchData {
@@ -177,7 +182,7 @@ struct LatticeMappingSearchData {
   ///     by the lattice_mapping
   Index const N_supercell_site;
 
-  /// \brief Matrix of shape=(3,N_supercell_site) containing
+  /// \brief Matrix of shape=(3,N_atom) containing
   ///     the Cartesian coordinates of the child structure atoms,
   ///     in the state after the inverse lattice mapping deformation
   ///     is applied (\f$F^{-1}\vec{r_2}\f$). The supercell refers

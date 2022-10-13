@@ -2,6 +2,7 @@
 #define CASM_mapping_StructureMapping
 
 #include <memory>
+#include <vector>
 
 #include "casm/mapping/AtomMapping.hh"
 #include "casm/mapping/LatticeMapping.hh"
@@ -9,7 +10,8 @@
 namespace CASM {
 namespace xtal {
 class BasicStructure;
-}
+class SimpleStructure;
+}  // namespace xtal
 namespace mapping {
 
 /// \brief Used to sort structure mappings and store the lattice
@@ -45,6 +47,48 @@ struct StructureMapping {
   LatticeMapping lattice_mapping;
   AtomMapping atom_mapping;
 };
+
+struct ScoredStructureMapping : public StructureMapping {
+  ScoredStructureMapping(double _lattice_cost, double _atom_cost,
+                         double _total_cost,
+                         StructureMapping _structure_mapping)
+      : StructureMapping(_structure_mapping),
+        lattice_cost(_lattice_cost),
+        atom_cost(_atom_cost),
+        total_cost(_total_cost) {}
+
+  ScoredStructureMapping(StructureMappingCost const &_cost,
+                         StructureMapping _structure_mapping)
+      : ScoredStructureMapping(_cost.lattice_cost, _cost.atom_cost,
+                               _cost.total_cost, _structure_mapping) {}
+
+  ScoredStructureMapping(
+      std::pair<StructureMappingCost, StructureMapping> const &_pair)
+      : ScoredStructureMapping(_pair.first, _pair.second) {}
+
+  double lattice_cost;
+  double atom_cost;
+  double total_cost;
+};
+
+struct StructureMappingResults {
+  typedef std::vector<ScoredStructureMapping>::size_type size_type;
+  typedef std::vector<ScoredStructureMapping>::const_iterator const_iterator;
+
+  size_type size() const { return data.size(); }
+
+  const_iterator begin() const { return data.begin(); }
+
+  const_iterator end() const { return data.end(); }
+
+  std::vector<ScoredStructureMapping> data;
+};
+
+/// \brief Return the mapped structure, with implied vacancies,
+///     strain, and atomic displacement
+xtal::SimpleStructure make_mapped_structure(
+    StructureMapping const &structure_mapping,
+    xtal::SimpleStructure const &unmapped_structure);
 
 }  // namespace mapping
 }  // namespace CASM

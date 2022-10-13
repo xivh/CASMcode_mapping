@@ -232,12 +232,12 @@ PYBIND11_MODULE(methods, m) {
           The fraction of the total cost due to the lattice strain cost.
           The remaining fraction (1.-lattice_cost_weight) is due to the
           atom cost.
-      strain_cost_method : str, default="isotropic_strain_cost"
+      lattice_cost_method : str, default="isotropic_strain_cost"
           Selects the method used to calculate lattice mapping costs. One of
           "isotropic_strain_cost" or "symmetry_breaking_strain_cost".
-      atom_cost_method : str, default="isotropic_strain_cost"
+      atom_cost_method : str, default="isotropic_disp_cost"
           Selects the method used to calculate atom mapping costs. One of
-          "isotropic_atom_cost" or "symmetry_breaking_atom_cost".
+          "isotropic_disp_cost" or "symmetry_breaking_disp_cost".
       k_best : int, default=1
           Only keep the k-best results (i.e. k mappings with minimum cost)
           satisfying the min_cost and max_cost constraints. If there are
@@ -258,8 +258,8 @@ PYBIND11_MODULE(methods, m) {
         py::arg("structure_factor_group") = std::vector<xtal::SymOp>{},
         py::arg("min_vol") = 1, py::arg("min_cost") = 0.0,
         py::arg("max_cost") = 1e20, py::arg("lattice_cost_weight") = 0.5,
-        py::arg("strain_cost_method") = std::string("isotropic_strain_cost"),
-        py::arg("atom_cost_method") = std::string("isotropic_atom_cost"),
+        py::arg("lattice_cost_method") = std::string("isotropic_strain_cost"),
+        py::arg("atom_cost_method") = std::string("isotropic_disp_cost"),
         py::arg("k_best") = 1, py::arg("cost_tol") = 1e-5);
 
   m.def("map_atoms", &map_atoms, R"pbdoc(
@@ -272,7 +272,7 @@ PYBIND11_MODULE(methods, m) {
 
       Atom mapping costs are calculated and ranked according to one of:
 
-      - "isotropic_atom_cost": an atom mapping cost, calculated to be
+      - "isotropic_disp_cost": an atom mapping cost, calculated to be
         volume-normalized and invariant to which structure is the
         parent/child. Calculated as:
 
@@ -330,9 +330,9 @@ PYBIND11_MODULE(methods, m) {
           Keep atom mappings with cost >= min_cost
       max_cost : float, default=1e20
           Keep atom mappings with cost <= max_cost
-      atom_cost_method : str, default="isotropic_strain_cost"
+      atom_cost_method : str, default="isotropic_disp_cost"
           Selects the method used to calculate atom mapping costs. One of
-          "isotropic_atom_cost" or "symmetry_breaking_atom_cost".
+          "isotropic_disp_cost" or "symmetry_breaking_disp_cost".
       k_best : int, default=1
           Only keep the k-best results (i.e. k mappings with minimum cost)
           satisfying the min_cost and max_cost constraints. If there are
@@ -350,12 +350,21 @@ PYBIND11_MODULE(methods, m) {
         py::arg("prim"), py::arg("structure"), py::arg("lattice_mapping"),
         py::arg("prim_factor_group") = std::vector<xtal::SymOp>{},
         py::arg("min_cost") = 0.0, py::arg("max_cost") = 1e20,
-        py::arg("atom_cost_method") = std::string("isotropic_atom_cost"),
+        py::arg("atom_cost_method") = std::string("isotropic_disp_cost"),
         py::arg("k_best") = 1, py::arg("cost_tol") = 1e-5);
 
+  // Apply lattice mapping
+  m.def(
+       "copy_apply",
+       [](LatticeMapping const &m, xtal::Lattice const &lattice1) {
+         return make_mapped_lattice(lattice1, m);
+       },
+       py::arg("lattice1"),
+       "Returns the transformed lattice, :math:`L2 = F * L1 * T * N`.")
+
 #ifdef VERSION_INFO
-  m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
+      m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
-  m.attr("__version__") = "dev";
+      m.attr("__version__") = "dev";
 #endif
 }

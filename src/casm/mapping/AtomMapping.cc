@@ -37,8 +37,8 @@ namespace mapping {
 ///   mapping problem.
 /// - \f$p_i\f$: A permutation vector, describes which atom in the unmapped
 ///   child structure (\f$p_i\f$) is mapped to the i-th site of the mapped
-///   structure. Values of \f$p_i\f$ greater than the number of atoms in the
-///   unmapped structure indicate inferred vacancies.
+///   structure. Values of \f$p_i\f$ greater than or equal to the number of
+///   atoms in the unmapped structure indicate inferred vacancies.
 /// - \f$\vec{t}\f$: A translation vector, in Cartesian coordinates, of the de-
 ///   rotated and undeformed (mapped) child superstructure that minimizes the
 ///   atomic displacement cost.
@@ -60,7 +60,8 @@ namespace mapping {
 /// mapping transformation definition.
 ///
 /// \param _displacement A (3,N) matrix of displacements, in Cartesian
-///     coordinates, where N is the number of atoms
+///     coordinates, where N is the number of sites in the parent
+///     superstructure
 /// \param _permutation A size N permutation vector
 /// \param _translation A translation vector, in Cartesian coordiantes
 AtomMapping::AtomMapping(Eigen::MatrixXd const &_displacement,

@@ -1,6 +1,8 @@
 #ifndef CASM_mapping_LatticeMapping
 #define CASM_mapping_LatticeMapping
 
+#include <vector>
+
 #include "casm/global/eigen.hh"
 
 namespace CASM {
@@ -40,9 +42,25 @@ struct LatticeMapping {
   Eigen::Matrix3d left_stretch;
 };
 
-/// \brief Return mapped lattice, L2 = F * L1 * T * N
-xtal::Lattice make_mapped_lattice(xtal::Lattice const &prim_lattice,
-                                  LatticeMapping const &lattice_mapping);
+struct ScoredLatticeMapping : public LatticeMapping {
+  ScoredLatticeMapping(double _lattice_cost, LatticeMapping _lattice_mapping)
+      : LatticeMapping(_lattice_mapping), lattice_cost(_lattice_cost) {}
+
+  double lattice_cost;
+};
+
+struct LatticeMappingResults {
+  typedef std::vector<ScoredLatticeMapping>::size_type size_type;
+  typedef std::vector<ScoredLatticeMapping>::const_iterator const_iterator;
+
+  size_type size() const { return data.size(); }
+
+  const_iterator begin() const { return data.begin(); }
+
+  const_iterator end() const { return data.end(); }
+
+  std::vector<ScoredLatticeMapping> data;
+};
 
 }  // namespace mapping
 }  // namespace CASM

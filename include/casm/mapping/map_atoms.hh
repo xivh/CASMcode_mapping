@@ -16,6 +16,7 @@ struct SymOp;
 
 namespace mapping {
 struct AtomMapping;
+struct AtomMappingResults;
 struct LatticeMapping;
 
 // Note: See source file for full documentation
@@ -37,7 +38,7 @@ struct LatticeMapping;
 ///     will also be kept.
 /// \param cost_tol Tolerance for checking if lattice mapping costs are
 ///     approximately equal
-std::vector<std::pair<double, AtomMapping>> map_atoms(
+AtomMappingResults map_atoms(
     xtal::BasicStructure const &prim, xtal::SimpleStructure const &structure2,
     LatticeMapping const &lattice_mapping,
     std::vector<xtal::SymOp> prim_factor_group = std::vector<xtal::SymOp>{},

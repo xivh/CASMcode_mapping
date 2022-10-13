@@ -16,11 +16,12 @@ struct SymOp;
 
 namespace mapping {
 struct LatticeMapping;
+struct LatticeMappingResults;
 
 // Note: See source file for full documentation
 
 /// \brief Find lattice mappings
-std::vector<std::pair<double, LatticeMapping>> map_lattices(
+LatticeMappingResults map_lattices(
     xtal::Lattice const &lattice1, xtal::Lattice const &lattice2,
     std::optional<Eigen::Matrix3d> T = std::nullopt,
     int reorientation_range = 1,

@@ -110,12 +110,13 @@ namespace mapping {
 ///     will also be kept.
 /// \param cost_tol Tolerance for checking if lattice mapping costs are
 ///     approximately equal
-std::vector<std::pair<double, AtomMapping>> map_atoms(
-    xtal::BasicStructure const &prim, xtal::SimpleStructure const &structure2,
-    LatticeMapping const &lattice_mapping,
-    std::vector<xtal::SymOp> prim_factor_group, double min_cost,
-    double max_cost, std::string atom_cost_method, int k_best,
-    double cost_tol) {
+AtomMappingResults map_atoms(xtal::BasicStructure const &prim,
+                             xtal::SimpleStructure const &structure2,
+                             LatticeMapping const &lattice_mapping,
+                             std::vector<xtal::SymOp> prim_factor_group,
+                             double min_cost, double max_cost,
+                             std::string atom_cost_method, int k_best,
+                             double cost_tol) {
   bool symmetrize_atom_cost =
       mapping_impl::is_symmetry_breaking_atom_cost(atom_cost_method);
 
@@ -162,13 +163,13 @@ std::vector<std::pair<double, AtomMapping>> map_atoms(
       strucmap.map_deformed_struc_impose_lattice_node(
           structure2, imposed_node, k_best, max_cost, min_cost, keep_invalid);
 
-  std::vector<std::pair<double, AtomMapping>> results;
+  AtomMappingResults results;
   for (auto const &mapping_node : mappings) {
     if (!(mapping_node.cost > (min_cost - cost_tol) &&
           mapping_node.cost < (max_cost + cost_tol))) {
       continue;
     }
-    results.emplace_back(
+    results.data.emplace_back(
         mapping_node.atomic_node.cost,
         mapping_impl::make_atom_mapping(lattice_mapping.deformation_gradient,
                                         mapping_node));

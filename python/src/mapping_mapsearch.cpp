@@ -331,7 +331,7 @@ PYBIND11_MODULE(mapsearch, m) {
           -------
           atom_coordinate_cart_in_supercell : numpy.ndarray[numpy.float64[m, n]]
               This is :math:`F^{-1}\vec{r_2}`, as defined in
-              `~libcasm.mapping.info.AtomMapping`, a shape=(3,N_supercell_site)
+              `~libcasm.mapping.info.AtomMapping`, a shape=(3,N_atom)
               matrix with columns containing the Cartesian coordinates of the
               structure's atoms in the state after the inverse lattice
               mapping deformation is applied.

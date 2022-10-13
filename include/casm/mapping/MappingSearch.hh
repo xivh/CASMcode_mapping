@@ -2,9 +2,9 @@
 #define CASM_mapping_MappingSearch
 
 #include <map>
-#include <set>
-#include <optional>
 #include <memory>
+#include <optional>
+#include <set>
 
 #include "casm/mapping/AtomMapping.hh"
 #include "casm/mapping/LatticeMapping.hh"
@@ -159,7 +159,7 @@ struct MappingSearch {
       AtomCostFunction _atom_cost_f = IsotropicAtomCost(),
       TotalCostFunction _total_cost_f = WeightedTotalCost(0.5),
       AtomToSiteCostFunction _atom_to_site_cost_f = make_atom_to_site_cost,
-      bool enable_remove_mean_displacement = true, double _infinity = 1e20,
+      bool _enable_remove_mean_displacement = true, double _infinity = 1e20,
       double _cost_tol = 1e-5);
 
   /// \brief A queue of structure mappings, sorted by total
@@ -202,8 +202,8 @@ struct MappingSearch {
   AtomToSiteCostFunction atom_to_site_cost_f;
 
   /// \brief If true, the AtomMapping translation and displacements
-  ///     are adjusted consistently so that the mean displacment is
-  ///     zero.
+  ///     are adjusted consistently so that the mean displacment
+  ///     (includes explicit vacancies) is zero.
   bool enable_remove_mean_displacement;
 
   /// \brief Cost used to prevent assignments that are not allowed
@@ -243,8 +243,7 @@ struct MappingSearch {
 };
 
 /// \brief Return MappingSearch results combined with overflow
-std::vector<std::pair<StructureMappingCost, StructureMapping>> combined_results(
-    MappingSearch const &search);
+StructureMappingResults combined_results(MappingSearch const &search);
 
 /// --- Inline implementation ---
 

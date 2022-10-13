@@ -125,6 +125,30 @@ make_search_prim_binary_BCC(double a) {
       std::make_shared<BasicStructure const>(prim));
 }
 
+// binary + Va, primitive BCC
+inline std::shared_ptr<mapping::PrimSearchData const>
+make_search_prim_binary_vacancy_BCC(double a) {
+  using namespace xtal;
+  // lattice vectors as cols
+  Eigen::Matrix3d lat;
+  lat << -a / 2., a / 2., a / 2.,  //
+      a / 2., -a / 2., a / 2.,     //
+      a / 2., a / 2., -a / 2.;     //
+
+  BasicStructure prim{Lattice{lat}};
+
+  Molecule A = Molecule::make_atom("A");
+  Molecule B = Molecule::make_atom("B");
+  Molecule Va = Molecule::make_vacancy();
+
+  prim.push_back(
+      Site(Coordinate(Eigen::Vector3d(0., 0., 0.), prim.lattice(), FRAC),
+           std::vector<Molecule>{A, B, Va}));
+
+  return std::make_shared<mapping::PrimSearchData const>(
+      std::make_shared<BasicStructure const>(prim));
+}
+
 // binary, primitive FCC
 inline std::shared_ptr<mapping::PrimSearchData const>
 make_search_prim_binary_FCC(double a) {

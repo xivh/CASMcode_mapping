@@ -76,7 +76,7 @@ namespace mapping {
 /// \returns A vector of {cost, lattice_mapping}, giving lattice
 ///     mapping solutions and their costs, sorted by lattice mapping cost.
 ///
-std::vector<std::pair<double, LatticeMapping>> map_lattices(
+LatticeMappingResults map_lattices(
     xtal::Lattice const &lattice1, xtal::Lattice const &lattice2,
     std::optional<Eigen::Matrix3d> T, int reorientation_range,
     std::vector<xtal::SymOp> lattice1_point_group,
@@ -145,9 +145,9 @@ std::vector<std::pair<double, LatticeMapping>> map_lattices(
   while (overflow.size()) {
     results.insert(overflow.extract(overflow.begin()));
   }
-  std::vector<std::pair<double, LatticeMapping>> final;
+  LatticeMappingResults final;
   for (auto const &pair : results) {
-    final.emplace_back(pair.first.cost, pair.second);
+    final.data.emplace_back(pair.first.cost, pair.second);
   }
   return final;
 }
