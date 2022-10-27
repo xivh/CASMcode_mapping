@@ -26,7 +26,7 @@ using namespace CASM::mapping;
 
 }  // namespace CASMpy
 
-PYBIND11_MODULE(methods, m) {
+PYBIND11_MODULE(_methods, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
@@ -353,18 +353,20 @@ PYBIND11_MODULE(methods, m) {
         py::arg("atom_cost_method") = std::string("isotropic_disp_cost"),
         py::arg("k_best") = 1, py::arg("cost_tol") = 1e-5);
 
-  // Apply lattice mapping
-  m.def(
-       "copy_apply",
-       [](LatticeMapping const &m, xtal::Lattice const &lattice1) {
-         return make_mapped_lattice(lattice1, m);
-       },
-       py::arg("lattice1"),
-       "Returns the transformed lattice, :math:`L2 = F * L1 * T * N`.")
+  // Apply structure mapping
+  m.def("make_mapped_structure", &mapping::make_mapped_structure,
+        py::arg("structure_mapping"), py::arg("unmapped_structure"),
+        "Returns a structure equivalent to `unmapped_structure`, but "
+        "translated and rotated into alignment with the reference `prim`. "
+        "Strain, measured relative to the reference `prim`, is included as a "
+        "global property `Ustrain`, and displacements, measured relative to "
+        "the ideal site coordinates are included as the atom property `disp`. "
+        "All other properties of the unmapped structure are also transformed "
+        "into alignment.");
 
 #ifdef VERSION_INFO
-      m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
+  m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
-      m.attr("__version__") = "dev";
+  m.attr("__version__") = "dev";
 #endif
 }

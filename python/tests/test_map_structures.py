@@ -195,7 +195,7 @@ def test_map_structures_3():
         max_cost=0.1,
         min_cost=0.)
     assert len(structure_mappings) == 1
-    strucscore, structure_mapping = structure_mappings[0]
+    structure_mapping = structure_mappings[0]
     U = structure_mapping.lattice_mapping().right_stretch()
     assert np.allclose(
         U,
@@ -204,3 +204,14 @@ def test_map_structures_3():
             [0., 1.00362465, 0.05232166],
             [0., 0.05232166, 1.09875495],
         ]))
+
+    # Q * U * L1 * T * N = L2
+    mapped_structure = mapmethods.make_mapped_structure(
+        structure_mappings[0], structure)
+    lmap = structure_mappings[0].lattice_mapping()
+    assert np.allclose(
+        lmap.isometry() @ U @ prim.lattice().column_vector_matrix() @ lmap.transformation_matrix_to_super() @ lmap.reorientation(),
+        structure.lattice().column_vector_matrix())
+    assert np.allclose(
+        U @ prim.lattice().column_vector_matrix() @ lmap.transformation_matrix_to_super() @ lmap.reorientation(),
+        mapped_structure.lattice().column_vector_matrix())

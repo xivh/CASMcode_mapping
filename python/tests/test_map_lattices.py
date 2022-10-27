@@ -52,13 +52,13 @@ def test_map_lattices_2():
                                                lattice2,
                                                max_cost=1.0,
                                                k_best=1)
-    for cost, lattice_mapping in lattice_mappings:
+    for lattice_mapping in lattice_mappings:
         Q = lattice_mapping.isometry()
         U = lattice_mapping.right_stretch()
         T = lattice_mapping.transformation_matrix_to_super()
         N = lattice_mapping.reorientation()
         assert np.allclose(Q @ U @ L1 @ T @ N, L2)
-        assert math.isclose(cost, 0.007434763583127571)
+        assert math.isclose(lattice_mapping.lattice_cost(), 0.007434763583127571)
     assert len(lattice_mappings) == 48
 
 

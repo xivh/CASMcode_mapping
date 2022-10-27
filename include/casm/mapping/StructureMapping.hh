@@ -75,6 +75,9 @@ struct StructureMappingResults {
   typedef std::vector<ScoredStructureMapping>::size_type size_type;
   typedef std::vector<ScoredStructureMapping>::const_iterator const_iterator;
 
+  StructureMappingResults(std::vector<ScoredStructureMapping> _data = {})
+      : data(_data) {}
+
   size_type size() const { return data.size(); }
 
   const_iterator begin() const { return data.begin(); }

@@ -33,6 +33,8 @@ struct AtomMappingResults {
   typedef std::vector<ScoredAtomMapping>::size_type size_type;
   typedef std::vector<ScoredAtomMapping>::const_iterator const_iterator;
 
+  AtomMappingResults(std::vector<ScoredAtomMapping> _data = {}) : data(_data) {}
+
   size_type size() const { return data.size(); }
 
   const_iterator begin() const { return data.begin(); }

@@ -53,6 +53,9 @@ struct LatticeMappingResults {
   typedef std::vector<ScoredLatticeMapping>::size_type size_type;
   typedef std::vector<ScoredLatticeMapping>::const_iterator const_iterator;
 
+  LatticeMappingResults(std::vector<ScoredLatticeMapping> _data = {})
+      : data(_data) {}
+
   size_type size() const { return data.size(); }
 
   const_iterator begin() const { return data.begin(); }

@@ -27,7 +27,7 @@ StructureMapping make_structure_mapping(xtal::BasicStructure const &prim,
 
 }  // namespace CASMpy
 
-PYBIND11_MODULE(info, m) {
+PYBIND11_MODULE(_info, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
@@ -135,6 +135,63 @@ PYBIND11_MODULE(info, m) {
           "Returns the shape=(3,3) right symmetric stretch tensor, :math:`U`, "
           "of the parent-to-child deformation gradient tensor.");
 
+  py::class_<ScoredLatticeMapping, LatticeMapping>(m, "ScoredLatticeMapping",
+                                                   R"pbdoc(
+      A mapping between two lattices, plus the mapping cost.
+
+      Notes
+      -----
+      Deformations can be validly defined as parent-to-child or
+      child-to-parent. Be careful as to which convention is being used.
+      )pbdoc")
+      .def(py::init<double, LatticeMapping>(), py::arg("lattice_cost"),
+           py::arg("lattice_mapping"),
+           R"pbdoc(
+          Construct a scored lattice mapping
+
+          Parameters
+          ----------
+
+          lattice_cost : float
+              The cost of lattice mapping. The value depends on the method used.
+          lattice_mapping : libcasm.mapping.LatticeMapping
+              A :class:`~libcasm.mapping.LatticeMapping`
+          )pbdoc")
+      .def(
+          "lattice_cost",
+          [](ScoredLatticeMapping const &m) { return m.lattice_cost; },
+          "Returns the lattice mapping cost.");
+
+  py::class_<LatticeMappingResults>(m, "LatticeMappingResults", R"pbdoc(
+      Holds a list of scored lattice mapping results.
+      )pbdoc")
+      .def(py::init<std::vector<ScoredLatticeMapping>>(),
+           py::arg("data") = std::vector<ScoredLatticeMapping>(),
+           R"pbdoc(
+          Construct lattice mapping results data structure
+
+          Parameters
+          ----------
+
+          data : List[libcasm.mapping.ScoredLatticeMapping]
+              The list of scored lattice mappings.
+          )pbdoc")
+      .def("size", &LatticeMappingResults::size,
+           "Returns the number of scored lattice mappings.")
+      .def(
+          "data", [](LatticeMappingResults const &m) { return m.data; },
+          "Returns the list of scored lattice mappings.")
+      .def("__len__", &LatticeMappingResults::size)
+      .def("__getitem__",
+           [](LatticeMappingResults const &m, Index i) { return m.data[i]; })
+      .def(
+          "__iter__",
+          [](LatticeMappingResults const &m) {
+            return py::make_iterator(m.begin(), m.end());
+          },
+          py::keep_alive<
+              0, 1>() /* Essential: keep object alive while iterator exists */);
+
   py::class_<AtomMapping>(m, "AtomMapping", R"pbdoc(
      A mapping of atoms between two structures
 
@@ -215,6 +272,57 @@ PYBIND11_MODULE(info, m) {
           "translation", [](AtomMapping const &m) { return m.translation; },
           R"pbdoc(Returns the translation vector, :math:`\vec{t}`.)pbdoc");
 
+  py::class_<ScoredAtomMapping, AtomMapping>(m, "ScoredAtomMapping", R"pbdoc(
+      A mapping of atoms between two structures, plus the mapping cost.
+
+      )pbdoc")
+      .def(py::init<double, AtomMapping>(), py::arg("atom_cost"),
+           py::arg("atom_mapping"),
+           R"pbdoc(
+          Construct a scored atom mapping
+
+          Parameters
+          ----------
+
+          atom_cost : float
+              The cost of atom mapping. The value depends on the method used.
+          atom_mapping : libcasm.mapping.AtomMapping
+              A :class:`~libcasm.mapping.AtomMapping`
+          )pbdoc")
+      .def(
+          "atom_cost", [](ScoredAtomMapping const &m) { return m.atom_cost; },
+          "Returns the lattice mapping cost.");
+
+  py::class_<AtomMappingResults>(m, "AtomMappingResults", R"pbdoc(
+      Holds a list of scored atom mapping results.
+      )pbdoc")
+      .def(py::init<std::vector<ScoredAtomMapping>>(),
+           py::arg("data") = std::vector<ScoredAtomMapping>(),
+           R"pbdoc(
+          Construct atom mapping results data structure
+
+          Parameters
+          ----------
+
+          data : List[libcasm.mapping.ScoredAtomMapping]
+              The list of scored atom mappings.
+          )pbdoc")
+      .def("size", &AtomMappingResults::size,
+           "Returns the number of scored atom mappings.")
+      .def(
+          "data", [](AtomMappingResults const &m) { return m.data; },
+          "Returns the list of scored atom mappings.")
+      .def("__len__", &AtomMappingResults::size)
+      .def("__getitem__",
+           [](AtomMappingResults const &m, Index i) { return m.data[i]; })
+      .def(
+          "__iter__",
+          [](AtomMappingResults const &m) {
+            return py::make_iterator(m.begin(), m.end());
+          },
+          py::keep_alive<
+              0, 1>() /* Essential: keep object alive while iterator exists */);
+
   py::class_<StructureMapping>(m, "StructureMapping", R"pbdoc(
     A mapping between two structures
 
@@ -252,6 +360,72 @@ PYBIND11_MODULE(info, m) {
           "atom_mapping",
           [](StructureMapping const &m) { return m.atom_mapping; },
           "Returns the :class:`~libcasm.mapping.AtomMapping`.");
+
+  py::class_<ScoredStructureMapping, StructureMapping>(
+      m, "ScoredStructureMapping", R"pbdoc(
+      A mapping between two structures, plus the mapping cost.
+
+      )pbdoc")
+      .def(py::init<double, double, double, StructureMapping>(),
+           py::arg("lattice_cost"), py::arg("atom_cost"), py::arg("total_cost"),
+           py::arg("structure_mapping"),
+           R"pbdoc(
+          Construct a scored atom mapping
+
+          Parameters
+          ----------
+
+          lattice_cost : float
+              The cost of lattice mapping. The value depends on the method used.
+          atom_cost : float
+              The cost of atom mapping. The value depends on the method used.
+          total_cost : float
+              The cost of structure mapping. The value depends on the method used.
+          structure_mapping : libcasm.mapping.StructureMapping
+              A :class:`~libcasm.mapping.StructureMapping`
+          )pbdoc")
+      .def(
+          "atom_cost",
+          [](ScoredStructureMapping const &m) { return m.lattice_cost; },
+          "Returns the lattice mapping cost.")
+      .def(
+          "lattice_cost",
+          [](ScoredStructureMapping const &m) { return m.atom_cost; },
+          "Returns the atom mapping cost.")
+      .def(
+          "total_cost",
+          [](ScoredStructureMapping const &m) { return m.total_cost; },
+          "Returns the total mapping cost.");
+
+  py::class_<StructureMappingResults>(m, "StructureMappingResults", R"pbdoc(
+      Holds a list of scored structure mapping results.
+      )pbdoc")
+      .def(py::init<std::vector<ScoredStructureMapping>>(),
+           py::arg("data") = std::vector<ScoredStructureMapping>(),
+           R"pbdoc(
+          Construct structure mapping results data structure
+
+          Parameters
+          ----------
+
+          data : List[libcasm.mapping.ScoredAtomMapping]
+              The list of scored atom mappings.
+          )pbdoc")
+      .def("size", &StructureMappingResults::size,
+           "Returns the number of scored structure mappings.")
+      .def(
+          "data", [](StructureMappingResults const &m) { return m.data; },
+          "Returns the list of scored structure mappings.")
+      .def("__len__", &StructureMappingResults::size)
+      .def("__getitem__",
+           [](StructureMappingResults const &m, Index i) { return m.data[i]; })
+      .def(
+          "__iter__",
+          [](StructureMappingResults const &m) {
+            return py::make_iterator(m.begin(), m.end());
+          },
+          py::keep_alive<
+              0, 1>() /* Essential: keep object alive while iterator exists */);
 
   m.def(
       "has_same_prim",
