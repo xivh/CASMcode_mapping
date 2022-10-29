@@ -823,7 +823,9 @@ def main():
         {
             "directory": "tests/unit/mapping",
             "ldadd": [
-                "libcasm_mapping.la"
+                "libcasm_mapping.la",
+                "-lcasm_global",
+                "-lcasm_crystallography",
             ],
         }
     ])
