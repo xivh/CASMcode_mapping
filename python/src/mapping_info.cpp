@@ -2,10 +2,16 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+// nlohmann::json binding
+#define JSON_USE_IMPLICIT_CONVERSIONS 0
+#include "casm/casm_io/container/json_io.hh"
+#include "casm/casm_io/json/jsonParser.hh"
 #include "casm/crystallography/BasicStructure.hh"
 #include "casm/mapping/AtomMapping.hh"
 #include "casm/mapping/LatticeMapping.hh"
 #include "casm/mapping/StructureMapping.hh"
+#include "casm/mapping/io/json_io.hh"
+#include "pybind11_json/pybind11_json.hpp"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -18,11 +24,10 @@ namespace CASMpy {
 using namespace CASM;
 using namespace CASM::mapping;
 
-StructureMapping make_structure_mapping(xtal::BasicStructure const &prim,
-                                        LatticeMapping const &lattice_mapping,
-                                        AtomMapping const &atom_mapping) {
-  return StructureMapping(std::make_shared<xtal::BasicStructure const>(prim),
-                          lattice_mapping, atom_mapping);
+StructureMapping make_structure_mapping(
+    std::shared_ptr<xtal::BasicStructure const> const &shared_prim,
+    LatticeMapping const &lattice_mapping, AtomMapping const &atom_mapping) {
+  return StructureMapping(shared_prim, lattice_mapping, atom_mapping);
 }
 
 }  // namespace CASMpy
@@ -133,7 +138,55 @@ PYBIND11_MODULE(_info, m) {
           "right_stretch",
           [](LatticeMapping const &m) { return m.right_stretch; },
           "Returns the shape=(3,3) right symmetric stretch tensor, :math:`U`, "
-          "of the parent-to-child deformation gradient tensor.");
+          "of the parent-to-child deformation gradient tensor.")
+      .def(
+          "interpolated",
+          [](mapping::LatticeMapping const &m, double f) {
+            return interpolated_mapping(m, f);
+          },
+          py::arg("interpolation_factor"), R"pbdoc(
+          Return a mapping along the transformation pathway from the
+          parent to the mapped child lattice
+
+          Interpolated lattices can be constructed with the function
+          :func:`~libcasm.mapping.methods.make_mapped_lattice`:
+
+          .. code-block:: Python
+
+              from libcasm.mapping.methods import make_mapped_lattice
+
+              interpolated_lattice = make_mapped_lattice(
+                  parent_lattice,
+                  structure_mapping.interpolated(interpolation_factor))
+
+          Parameters
+          ----------
+          interpolation_factor : float
+              Interpolation factor. The value 0.0 corresponds to the
+              ideal parent lattice; and the value 1.0 corresponds to
+              the mapped child lattice (the child lattice rigidly
+              rotated to align with the ideal parent lattice).
+
+          Returns
+          -------
+          interpolated_lattice_mapping : libcasm.mapping.info.LatticeMapping
+              Interpolated lattice mapping
+          )pbdoc")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::LatticeMapping {
+            jsonParser json{data};
+            return jsonConstructor<mapping::LatticeMapping>::from_json(json);
+          },
+          "Construct a LatticeMapping from a Python dict.", py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::LatticeMapping const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the LatticeMapping as a Python dict.");
 
   py::class_<ScoredLatticeMapping, LatticeMapping>(m, "ScoredLatticeMapping",
                                                    R"pbdoc(
@@ -160,7 +213,24 @@ PYBIND11_MODULE(_info, m) {
       .def(
           "lattice_cost",
           [](ScoredLatticeMapping const &m) { return m.lattice_cost; },
-          "Returns the lattice mapping cost.");
+          "Returns the lattice mapping cost.")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::ScoredLatticeMapping {
+            jsonParser json{data};
+            return jsonConstructor<mapping::ScoredLatticeMapping>::from_json(
+                json);
+          },
+          "Construct a ScoredLatticeMapping from a Python dict.",
+          py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::ScoredLatticeMapping const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the ScoredLatticeMapping as a Python dict.");
 
   py::class_<LatticeMappingResults>(m, "LatticeMappingResults", R"pbdoc(
       Holds a list of scored lattice mapping results.
@@ -190,7 +260,24 @@ PYBIND11_MODULE(_info, m) {
             return py::make_iterator(m.begin(), m.end());
           },
           py::keep_alive<
-              0, 1>() /* Essential: keep object alive while iterator exists */);
+              0, 1>() /* Essential: keep object alive while iterator exists */)
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::LatticeMappingResults {
+            jsonParser json{data};
+            return jsonConstructor<mapping::LatticeMappingResults>::from_json(
+                json);
+          },
+          "Construct LatticeMappingResults from a Python dict.",
+          py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::LatticeMappingResults const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent LatticeMappingResults as a Python dict.");
 
   py::class_<AtomMapping>(m, "AtomMapping", R"pbdoc(
      A mapping of atoms between two structures
@@ -270,7 +357,44 @@ PYBIND11_MODULE(_info, m) {
           R"pbdoc(Returns the permutation vector, :math:`p_i`.)pbdoc")
       .def(
           "translation", [](AtomMapping const &m) { return m.translation; },
-          R"pbdoc(Returns the translation vector, :math:`\vec{t}`.)pbdoc");
+          R"pbdoc(Returns the translation vector, :math:`\vec{t}`.)pbdoc")
+      .def(
+          "interpolated",
+          [](mapping::AtomMapping const &m, double f) {
+            return interpolated_mapping(m, f);
+          },
+          py::arg("interpolation_factor"), R"pbdoc(
+          Return a mapping along the transformation pathway from the
+          ideal parent to the mapped child atom position
+
+          Parameters
+          ----------
+          interpolation_factor : float
+              Interpolation factor. The value 0.0 corresponds to the
+              ideal parent sites; and the value 1.0 corresponds to
+              the mapped child sites (the child sites rigidly
+              rotated to align with the ideal parent lattice).
+
+          Returns
+          -------
+          interpolated_atom_mapping : libcasm.mapping.info.AtomMapping
+              Interpolated atom mapping
+          )pbdoc")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::AtomMapping {
+            jsonParser json{data};
+            return jsonConstructor<mapping::AtomMapping>::from_json(json);
+          },
+          "Construct an AtomMapping from a Python dict.", py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::AtomMapping const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the AtomMapping as a Python dict.");
 
   py::class_<ScoredAtomMapping, AtomMapping>(m, "ScoredAtomMapping", R"pbdoc(
       A mapping of atoms between two structures, plus the mapping cost.
@@ -291,7 +415,22 @@ PYBIND11_MODULE(_info, m) {
           )pbdoc")
       .def(
           "atom_cost", [](ScoredAtomMapping const &m) { return m.atom_cost; },
-          "Returns the lattice mapping cost.");
+          "Returns the lattice mapping cost.")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::ScoredAtomMapping {
+            jsonParser json{data};
+            return jsonConstructor<mapping::ScoredAtomMapping>::from_json(json);
+          },
+          "Construct a ScoredAtomMapping from a Python dict.", py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::ScoredAtomMapping const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the ScoredAtomMapping as a Python dict.");
 
   py::class_<AtomMappingResults>(m, "AtomMappingResults", R"pbdoc(
       Holds a list of scored atom mapping results.
@@ -321,7 +460,23 @@ PYBIND11_MODULE(_info, m) {
             return py::make_iterator(m.begin(), m.end());
           },
           py::keep_alive<
-              0, 1>() /* Essential: keep object alive while iterator exists */);
+              0, 1>() /* Essential: keep object alive while iterator exists */)
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::AtomMappingResults {
+            jsonParser json{data};
+            return jsonConstructor<mapping::AtomMappingResults>::from_json(
+                json);
+          },
+          "Construct AtomMappingResults from a Python dict.", py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::AtomMappingResults const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the AtomMappingResults as a Python dict.");
 
   py::class_<StructureMapping>(m, "StructureMapping", R"pbdoc(
     A mapping between two structures
@@ -350,7 +505,7 @@ PYBIND11_MODULE(_info, m) {
               An :class:`~libcasm.mapping.AtomMapping`
           )pbdoc")
       .def(
-          "prim", [](StructureMapping const &m) { return *m.shared_prim; },
+          "prim", [](StructureMapping const &m) { return m.shared_prim; },
           "Returns the :class:`~libcasm.xtal.Prim`.")
       .def(
           "lattice_mapping",
@@ -359,7 +514,61 @@ PYBIND11_MODULE(_info, m) {
       .def(
           "atom_mapping",
           [](StructureMapping const &m) { return m.atom_mapping; },
-          "Returns the :class:`~libcasm.mapping.AtomMapping`.");
+          "Returns the :class:`~libcasm.mapping.AtomMapping`.")
+      .def(
+          "interpolated",
+          [](mapping::StructureMapping const &m, double f) {
+            return interpolated_mapping(m, f);
+          },
+          py::arg("interpolation_factor"),
+          R"pbdoc(
+          Return a mapping along the transformation pathway from the
+          ideal parent structure to the mapped child structure
+
+          Interpolated structures can be constructed with the function
+          :func:`~libcasm.mapping.methods.make_mapped_structure`:
+
+          .. code-block:: Python
+
+              from libcasm.mapping.methods import make_mapped_structure
+
+              interpolated_structure = make_mapped_structure(
+                  structure_mapping.interpolated(interpolation_factor),
+                  unmapped_structure)
+
+
+          Parameters
+          ----------
+          interpolation_factor : float
+              Interpolation factor. The value 0.0 corresponds to the
+              ideal parent structure; and the value 1.0 corresponds to
+              the mapped child structure (the child structure
+              rotated to align with the ideal parent structure).
+
+          Returns
+          -------
+          interpolated_structure_mapping : libcasm.mapping.info.StructureMapping
+              Interpolated structure mapping
+          )pbdoc")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data,
+             std::shared_ptr<xtal::BasicStructure const> const &prim)
+              -> mapping::StructureMapping {
+            jsonParser json{data};
+            return jsonConstructor<mapping::StructureMapping>::from_json(json,
+                                                                         prim);
+          },
+          "Construct a StructureMapping from a Python dict.", py::arg("prim"),
+          py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::StructureMapping const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the StructureMapping as a Python dict.");
 
   py::class_<ScoredStructureMapping, StructureMapping>(
       m, "ScoredStructureMapping", R"pbdoc(
@@ -386,16 +595,35 @@ PYBIND11_MODULE(_info, m) {
           )pbdoc")
       .def(
           "atom_cost",
-          [](ScoredStructureMapping const &m) { return m.lattice_cost; },
-          "Returns the lattice mapping cost.")
-      .def(
-          "lattice_cost",
           [](ScoredStructureMapping const &m) { return m.atom_cost; },
           "Returns the atom mapping cost.")
       .def(
+          "lattice_cost",
+          [](ScoredStructureMapping const &m) { return m.lattice_cost; },
+          "Returns the lattice mapping cost.")
+      .def(
           "total_cost",
           [](ScoredStructureMapping const &m) { return m.total_cost; },
-          "Returns the total mapping cost.");
+          "Returns the total mapping cost.")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data,
+             std::shared_ptr<xtal::BasicStructure const> const &prim)
+              -> mapping::ScoredStructureMapping {
+            jsonParser json{data};
+            return jsonConstructor<mapping::ScoredStructureMapping>::from_json(
+                json, prim);
+          },
+          "Construct a ScoredStructureMapping from a Python dict.",
+          py::arg("prim"), py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::ScoredStructureMapping const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the ScoredStructureMapping as a Python dict.");
 
   py::class_<StructureMappingResults>(m, "StructureMappingResults", R"pbdoc(
       Holds a list of scored structure mapping results.
@@ -425,7 +653,27 @@ PYBIND11_MODULE(_info, m) {
             return py::make_iterator(m.begin(), m.end());
           },
           py::keep_alive<
-              0, 1>() /* Essential: keep object alive while iterator exists */);
+              0, 1>() /* Essential: keep object alive while iterator exists */)
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data,
+             std::shared_ptr<xtal::BasicStructure const> const &prim)
+              -> mapping::StructureMappingResults {
+            StructureMappingResults results;
+            jsonParser json{data};
+            from_json(results, json, prim);
+            return results;
+          },
+          "Construct StructureMappingResults from a Python dict.",
+          py::arg("prim"), py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::StructureMappingResults const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the StructureMappingResults as a Python dict.");
 
   m.def(
       "has_same_prim",
@@ -492,7 +740,34 @@ PYBIND11_MODULE(_info, m) {
       .def(
           "total_cost",
           [](StructureMappingCost const &s) { return s.total_cost; },
-          "Returns the total mapping cost.");
+          "Returns the total mapping cost.")
+      .def_static(
+          "from_dict",
+          [](const nlohmann::json &data) -> mapping::StructureMappingCost {
+            jsonParser json{data};
+            return jsonConstructor<mapping::StructureMappingCost>::from_json(
+                json);
+          },
+          "Construct a StructureMappingCost from a Python dict.",
+          py::arg("data"))
+      .def(
+          "to_dict",
+          [](mapping::StructureMappingCost const &m) -> nlohmann::json {
+            jsonParser json;
+            to_json(m, json);
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent the StructureMappingCost as a Python dict.");
+
+  m.def(
+      "pretty_json",
+      [](const nlohmann::json &data) -> std::string {
+        jsonParser json{data};
+        std::stringstream ss;
+        ss << json << std::endl;
+        return ss.str();
+      },
+      "Pretty-print JSON to string.", py::arg("data"));
 
 #ifdef VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

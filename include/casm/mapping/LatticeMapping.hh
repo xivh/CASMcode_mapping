@@ -42,6 +42,15 @@ struct LatticeMapping {
   Eigen::Matrix3d left_stretch;
 };
 
+/// \brief Return a mapping along the transformation pathway from the
+///     parent to the mapped child lattice
+LatticeMapping interpolated_mapping(LatticeMapping const &lattice_mapping,
+                                    double interpolation_factor);
+
+/// \brief Return the mapped lattice
+xtal::Lattice make_mapped_lattice(xtal::Lattice const &parent_lattice,
+                                  LatticeMapping const &lattice_mapping);
+
 struct ScoredLatticeMapping : public LatticeMapping {
   ScoredLatticeMapping(double _lattice_cost, LatticeMapping _lattice_mapping)
       : LatticeMapping(_lattice_mapping), lattice_cost(_lattice_cost) {}

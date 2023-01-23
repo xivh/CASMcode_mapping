@@ -22,6 +22,12 @@ struct AtomMapping {
   Eigen::Vector3d translation;
 };
 
+/// \brief Return mappings that result in atom positions along the
+///     transformation pathway from the parent to the aligned child
+///     structure
+AtomMapping interpolated_mapping(AtomMapping const &atom_mapping,
+                                 double interpolation_factor);
+
 struct ScoredAtomMapping : public AtomMapping {
   ScoredAtomMapping(double _atom_cost, AtomMapping _atom_mapping)
       : AtomMapping(_atom_mapping), atom_cost(_atom_cost) {}

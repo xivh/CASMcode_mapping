@@ -11,6 +11,7 @@ namespace CASM {
 namespace xtal {
 class BasicStructure;
 class SimpleStructure;
+struct SymOp;
 }  // namespace xtal
 namespace mapping {
 
@@ -47,6 +48,12 @@ struct StructureMapping {
   LatticeMapping lattice_mapping;
   AtomMapping atom_mapping;
 };
+
+/// \brief Return mappings that result in structures along the
+///     transformation pathway from the parent to the aligned child
+///     structure
+StructureMapping interpolated_mapping(StructureMapping const &structure_mapping,
+                                      double interpolation_factor);
 
 struct ScoredStructureMapping : public StructureMapping {
   ScoredStructureMapping(double _lattice_cost, double _atom_cost,
@@ -92,6 +99,18 @@ struct StructureMappingResults {
 xtal::SimpleStructure make_mapped_structure(
     StructureMapping const &structure_mapping,
     xtal::SimpleStructure const &unmapped_structure);
+
+/// \brief Make the structure mapping to a different, but equivalent
+///     structure
+StructureMapping make_mapping_to_equivalent_structure(
+    xtal::SymOp const &op, xtal::Lattice const &target,
+    StructureMapping const &structure_mapping);
+
+/// \brief Make an equivalent mapping to a different, but symmetrically
+///     equivalent superlattice of the prim
+StructureMapping make_mapping_to_equivalent_superlattice(
+    xtal::Lattice const &target, StructureMapping const &structure_mapping,
+    std::vector<xtal::SymOp> const &group);
 
 }  // namespace mapping
 }  // namespace CASM

@@ -790,10 +790,9 @@ PYBIND11_MODULE(_mapsearch, m) {
 
           Returns
           -------
-          structure_mappings : List[Tuple[libcasm.mapping.info.StructureMappingCost, libcasm.mapping.info.StructureMapping]]
-              A list of tuple of :class:`~libcasm.mapping.info.StructureMappingCost`
-              and `libcasm.mapping.info.StructureMapping`, giving possible structure
-              mappings, sorted by total cost.
+          structure_mappings : libcasm.mapping.info.StructureMappingResults
+              A :class:`~libcasm.mapping.info.StructureMappingResults` object,
+              giving possible structure mappings, sorted by total cost.
           )pbdoc");
 
   py::class_<QueueConstraints>(m, "QueueConstraints", R"pbdoc(

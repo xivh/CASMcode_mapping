@@ -11,15 +11,18 @@ Install
 
 Installation of `libcasm-mapping` requires:
 - Python >=3.8
+- CASMcode_crystallography (C++ and Python) is already installed.
 - The compatible version of the CASM C++ mapping library is already installed.
 - Development environment that allows compiling the pybind11 interface to CASM C++ (i.e. C++ compiler with support for c++17)
 
 Normal installation:
 
+    export CASM_PREFIX=/path/to/casm/install/location
     pip install .
 
 Editable installation:
 
+    export CASM_PREFIX=/path/to/casm/install/location
     pip install -e .
 
 

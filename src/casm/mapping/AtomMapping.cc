@@ -71,5 +71,22 @@ AtomMapping::AtomMapping(Eigen::MatrixXd const &_displacement,
       permutation(_permutation),
       translation(_translation) {}
 
+/// \brief Return mappings that result in atom positions along the
+///     transformation pathway from the parent to the aligned child
+///     structure
+///
+/// \param atom_mapping Original atom mapping
+/// \param interpolation_factor Interpolation factor. The value 0.0
+///     corresponds to the child sites mapped to the ideal parent
+///     sites; and the value 1.0 corresponds to the child sites,
+///     transformed by isometry and translation to align
+///     with the ideal parent structure.
+AtomMapping interpolated_mapping(AtomMapping const &atom_mapping,
+                                 double interpolation_factor) {
+  double f = interpolation_factor;
+  return AtomMapping(atom_mapping.displacement * f, atom_mapping.permutation,
+                     atom_mapping.translation);
+}
+
 }  // namespace mapping
 }  // namespace CASM

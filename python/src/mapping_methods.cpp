@@ -168,10 +168,9 @@ PYBIND11_MODULE(_methods, m) {
 
       Returns
       -------
-      lattice_mappings : List[Tuple[float, libcasm.mapping.LatticeMapping]]
-          A list of tuple of lattice mapping cost (float) and
-          `libcasm.mapping.LatticeMapping`, giving possible lattice
-          mappings, sorted by lattice mapping cost.
+      lattice_mappings : libcasm.mapping.info.LatticeMappingResults
+          A :class:`~libcasm.mapping.info.LatticeMappingResults` object,
+          giving possible lattice mappings, sorted by lattice mapping cost.
       )pbdoc",
         py::arg("lattice1"), py::arg("lattice2"),
         py::arg("transformation_matrix_to_super") = std::nullopt,
@@ -187,10 +186,10 @@ PYBIND11_MODULE(_methods, m) {
 
       This method finds mappings from a superstructure of a reference "parent"
       structure to a "child" structure. It works by finding lattice mappings
-      (:class:`~cast.mapping.LatticeMapping`) for symmetrically unique
+      (:class:`~libcasm.mapping.info.LatticeMapping`) for symmetrically unique
       superlattices of the "parent" lattice for a range of supercell volumes,
       and for each potential lattice mapping finding atom mappings
-      (:class:`~cast.mapping.AtomMapping`).
+      (:class:`~libcasm.mapping.info.AtomMapping`).
 
       The total structure mapping cost, total_cost, is a weighted mixture of
       the lattice mapping cost, lattice_cost, and the atom mapping cost,
@@ -248,10 +247,9 @@ PYBIND11_MODULE(_methods, m) {
 
       Returns
       -------
-      structure_mappings : List[Tuple[libcasm.mapping.StructureMappingCost, libcasm.mapping.StructureMapping]]
-          A list of tuple of :class:`~libcasm.mapping.StructureMappingCost`
-          and `libcasm.mapping.StructureMapping`, giving possible structure
-          mappings, sorted by total cost.
+      structure_mappings : libcasm.mapping.info.StructureMappingResults
+          A :class:`~libcasm.mapping.info.StructureMappingResults` object,
+          giving possible structure mappings, sorted by total cost.
       )pbdoc",
         py::arg("prim"), py::arg("structure"), py::arg("max_vol"),
         py::arg("prim_factor_group") = std::vector<xtal::SymOp>{},
@@ -267,8 +265,8 @@ PYBIND11_MODULE(_methods, m) {
 
       This method finds atom mappings from a superstructure of a reference
       "parent" structure to a "child" structure. It works by checking
-      atom mappings (:class:`~cast.mapping.AtomMapping`) given a particular
-      lattice mapping (:class:`~cast.mapping.LatticeMapping`).
+      atom mappings (:class:`~libcasm.mapping.info.AtomMapping`) given a particular
+      lattice mapping (:class:`~libcasm.mapping.info.LatticeMapping`).
 
       Atom mapping costs are calculated and ranked according to one of:
 
@@ -320,7 +318,7 @@ PYBIND11_MODULE(_methods, m) {
           types are allowed to map to each basis site.
       structure : libcasm.xtal.Lattice
           The "child" structure, with lattice :math:`L_2`.
-      lattice_mapping : libcasm.mapping.LatticeMapping
+      lattice_mapping : libcasm.mapping.info.LatticeMapping
           Defines the lattice mapping from the "parent" structure to
           the "child" structure.
       prim_factor_group : List[libcasm.xtal.SymOp], optional
@@ -343,8 +341,8 @@ PYBIND11_MODULE(_methods, m) {
 
       Returns
       -------
-      atom_mappings : List[Tuple[float, libcasm.mapping.AtomMapping]]
-          A list of tuple of atom_cost and `libcasm.mapping.AtomMapping`,
+      atom_mappings : libcasm.mapping.info.AtomMappingResults
+          A :class:`~libcasm.mapping.info.AtomMappingResults` object,
           giving possible atom mappings, sorted by atom mapping cost.
       )pbdoc",
         py::arg("prim"), py::arg("structure"), py::arg("lattice_mapping"),
@@ -354,15 +352,82 @@ PYBIND11_MODULE(_methods, m) {
         py::arg("k_best") = 1, py::arg("cost_tol") = 1e-5);
 
   // Apply structure mapping
-  m.def("make_mapped_structure", &mapping::make_mapped_structure,
-        py::arg("structure_mapping"), py::arg("unmapped_structure"),
-        "Returns a structure equivalent to `unmapped_structure`, but "
-        "translated and rotated into alignment with the reference `prim`. "
-        "Strain, measured relative to the reference `prim`, is included as a "
-        "global property `Ustrain`, and displacements, measured relative to "
-        "the ideal site coordinates are included as the atom property `disp`. "
-        "All other properties of the unmapped structure are also transformed "
-        "into alignment.");
+  m.def("make_mapped_lattice", &mapping::make_mapped_lattice, R"pbdoc(
+      Return the mapped lattice
+
+      The mapped lattice is constructed from the parent lattice
+      by applying the lattice mapping without isometry. It has
+      the lattice vector column matrix:
+
+      .. math::
+
+          L_m = U L_1 T N
+
+      where :math:`L_1` is the reference "parent" lattice vectors, and
+      :math:`L_m` is the "mapped" lattice vectors, as columns of
+      shape=(3,3) matrices. The othe shape=(3,3) matrices are:
+
+      - :math:`U`, the shape=(3,3) right stretch tensor of the
+        parent-to-child deformation gradient tensor
+      - :math:`T`, an integer transformation matrix that generates a
+        superlattice of :math:`L_1`
+      - :math:`N`, a unimodular reorientation matrix that generates a
+        lattice equivalent to :math:`L_1 T` with reoriented lattice
+        vectors
+
+      Parameters
+      ----------
+      parent_lattice : libcasm.xtal.Lattice
+          The reference "parent" lattice.
+      lattice_mapping : libcasm.mapping.info.LatticeMapping
+          The lattice mapping transformation
+
+      Returns
+      -------
+      mapped_lattice : libcasm.xtal.Lattice
+          The mapped lattice that results from transforming the parent
+          lattice according to the lattice mapping
+      )pbdoc",
+        py::arg("parent_lattice"), py::arg("lattice_mapping"));
+
+  // Apply structure mapping
+  m.def("make_mapped_structure", &mapping::make_mapped_structure, R"pbdoc(
+      Return the mapped structure, with implied vacancies, strain, and
+      atomic displacement
+
+      The "mapped structure" lattice and site coordinates are constructed
+      from the parent structure by applying the lattice and atom mappings
+      without isometry. Atom names and atom properties are
+      determined from the unmapped structure, permutation, and
+      inverse isometry. Global properties are determined
+      from the unmapped global properties and inverse isometry. Strain,
+      using the right stretch tensor as the strain metric, is stored as
+      the global property "Ustrain". Displacement is stored as
+      atom properties.
+
+      Notes:
+
+      - This method is only implemented for atomic structures, not
+        molecular structures
+      - Implicit vacancies are added as "Va"
+      - Raises if unmapped_structure already has a strain or disp
+        property
+
+
+      Parameters
+      ----------
+      structure_mapping : libcasm.mapping.info.StructureMapping
+          The structure mapping transformation
+      unmapped_structure : libcasm.xtal.Structure
+          The unmapped "child" structure
+
+      Returns
+      -------
+      mapped_structure : libcasm.xtal.Structure
+          The mapped structure, with implied vacancies, strain, and
+          atomic displacement
+      )pbdoc",
+        py::arg("structure_mapping"), py::arg("unmapped_structure"));
 
 #ifdef VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

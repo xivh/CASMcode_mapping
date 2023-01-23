@@ -134,42 +134,6 @@ std::vector<std::string> make_supercell_atom_types(
   return supercell_atom_types;
 }
 
-/// \brief Return minimum length displacement (atom_cart - site_cart),
-///     accounting for periodic boundary conditions with a "fast" method
-///     which may not find the minimum pbc distance in all cases.
-///
-/// This removes integer multiples of lattice translations from the
-/// displacement.
-Eigen::Vector3d fast_pbc_displacement_cart(xtal::Lattice const &lattice,
-                                           Eigen::Vector3d const &site_cart,
-                                           Eigen::Vector3d const &atom_cart) {
-  Eigen::Vector3d disp_cart = atom_cart - site_cart;
-  Eigen::Vector3d disp_frac = lattice.inv_lat_column_mat() * disp_cart;
-  Eigen::Vector3d frac_lattice_translation = lround(disp_frac).cast<double>();
-  disp_frac -= frac_lattice_translation;
-  return lattice.lat_column_mat() * disp_frac;
-};
-
-/// \brief Return minimum length displacement (atom_cart - site_cart),
-///     accounting for periodic boundary conditions with a "robust"
-///     method which will find the minimum pbc distance in all cases.
-///
-/// This puts the displacement within the voronoi cell of the site.
-Eigen::Vector3d robust_pbc_displacement_cart(xtal::Lattice const &lattice,
-                                             Eigen::Vector3d const &site_cart,
-                                             Eigen::Vector3d const &atom_cart) {
-  Eigen::Vector3d disp_cart =
-      fast_pbc_displacement_cart(lattice, site_cart, atom_cart);
-  if (!(disp_cart.norm() < lattice.inner_voronoi_radius() + lattice.tol())) {
-    Eigen::Vector3d lattice_trans;
-    while (lattice.max_voronoi_measure(disp_cart, lattice_trans) >
-           (1. + lattice.tol())) {
-      disp_cart -= lattice_trans;
-    }
-  }
-  return disp_cart;
-};
-
 /// Can generate equivalent translations with:
 ///
 ///     test_translation + any internal translation

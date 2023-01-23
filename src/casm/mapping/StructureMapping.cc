@@ -3,8 +3,12 @@
 #include "casm/casm_io/Log.hh"
 #include "casm/crystallography/AnisoValTraits.hh"
 #include "casm/crystallography/BasicStructure.hh"
+#include "casm/crystallography/LinearIndexConverter.hh"
 #include "casm/crystallography/SimpleStructure.hh"
 #include "casm/crystallography/SimpleStructureTools.hh"
+#include "casm/crystallography/Superlattice.hh"
+#include "casm/crystallography/SymTools.hh"
+#include "casm/crystallography/UnitCellCoordRep.hh"
 #include "casm/mapping/LatticeMapping.hh"
 #include "casm/misc/CASM_Eigen_math.hh"
 
@@ -13,6 +17,25 @@
 
 namespace CASM {
 namespace mapping {
+
+/// \brief Return mappings that result in structures along the
+///     transformation pathway from the parent to the aligned child
+///     structure
+///
+/// \param structure_mapping Original structure mapping
+/// \param interpolation_factor Interpolation factor. The value 0.0
+///     corresponds to the child structure mapped to the ideal parent
+///     lattice and sites; and the value 1.0 corresponds to the child
+///     structure, transformed by isometry and translation to align
+///     with the ideal parent structure.
+StructureMapping interpolated_mapping(StructureMapping const &structure_mapping,
+                                      double interpolation_factor) {
+  double f = interpolation_factor;
+  return StructureMapping(
+      structure_mapping.shared_prim,
+      interpolated_mapping(structure_mapping.lattice_mapping, f),
+      interpolated_mapping(structure_mapping.atom_mapping, f));
+}
 
 /// \brief Return the mapped structure, with implied vacancies,
 ///     strain, and atomic displacement
@@ -80,6 +103,7 @@ xtal::SimpleStructure make_mapped_structure(
   auto const &Q = lattice_mapping.isometry;
   auto const &U = lattice_mapping.right_stretch;
   auto const &L1 = parent_structure.lat_column_mat;
+  auto const &L2 = unmapped_structure.lat_column_mat;
   auto const &T = lattice_mapping.transformation_matrix_to_super;
   auto const &N = lattice_mapping.reorientation;
 
@@ -145,10 +169,7 @@ xtal::SimpleStructure make_mapped_structure(
       std::stringstream msg;
       msg << "CASM does not know how to transform the local property '" << key
           << "'. The property name suffix must be the name of a local property "
-             "that CASM can transform. Local properties include 'coordinate', "
-             "'disp', 'force', 'Cmagspin', 'Cunitmagspin', 'NCmagspin', "
-             "'NCunitmagspin', 'SOmagspin', 'SOunitmagspin', "
-             "'dorbitaloccupation', and 'dorbitaloccupationspinpolarized'.";
+             "that CASM can transform.";
       CASM::err_log().paragraph(msg.str());
       throw std::runtime_error(
           std::string("Cannot transform local property '") + key + "'");
@@ -207,9 +228,7 @@ xtal::SimpleStructure make_mapped_structure(
       std::stringstream msg;
       msg << "CASM does not know how to transform the global property '" << key
           << "'. The property name suffix must be the name of a global "
-             "property that CASM can transform. Global properties include "
-             "'energy', 'Ustrain', 'Bstrain', 'GLstrain', 'AEstrain', "
-             "'Hstrain', and 'cost'.";
+             "property that CASM can transform.";
       CASM::err_log().paragraph(msg.str());
       throw std::runtime_error(
           std::string("Cannot transform global property '") + key + "'");
@@ -224,6 +243,138 @@ xtal::SimpleStructure make_mapped_structure(
   mapped_structure.properties.emplace("Ustrain", E_vector);
 
   return mapped_structure;
+}
+
+/// \brief Make the structure mapping to a different, but equivalent
+///     structure
+///
+/// \param op A symmetry operation that generates the equivalent mapped
+///     structure from the current mapped structure.
+/// \param target The superlattice of the equivalent mapped structure.
+/// \param structure_mapping A structure mapping.
+///
+/// \returns A structure mapping to an equivalent, but transformed,
+///     mapped structure.
+///
+/// The following result in equivalent `transformed_mapped` structures
+/// (assuming `target` is an equivalent superlattice and `op` is a prim
+/// factor group operation):
+/// \code
+/// xtal::SimpleStructure unmapped;
+/// xtal::SimpleStructure mapped = make_mapped_structure(
+///     structure_mapping, unmapped);
+/// xtal::SimpleStructure transformed_mapped =
+///     copy_apply(op, mapped);
+/// transformed_mapped.lat_column_mat = target.lat_column_mat();
+/// transformed_mapped.within();
+/// \endcode
+///
+/// \code
+/// xtal::SimpleStructure unmapped;
+/// StructureMapping transformed_structure_mapping =
+///     make_mapping_to_equivalent_structure(op, target, structure_mapping);
+/// xtal::SimpleStructure transformed_mapped =
+///     make_mapped_structure(transformed_structure_mapping, unmapped);
+/// \endcode
+///
+StructureMapping make_mapping_to_equivalent_structure(
+    xtal::SymOp const &op, xtal::Lattice const &target,
+    StructureMapping const &structure_mapping) {
+  auto const &smap = structure_mapping;
+
+  auto const &lmap = smap.lattice_mapping;
+  auto const &amap = smap.atom_mapping;
+  auto const &prim = *smap.shared_prim;
+  Index n_basis = prim.basis().size();
+
+  // note: '=' indicates "is equivalent to", not necessarily exact equality
+  // F_a * L1 * T * N = L2
+  // F_a * R.inv * R * L1 * T * N = L2
+  // F_a * (r1_a[i] + disp_a[i]) = r2[perm_a[i]] + trans_a
+  // F_b * (r1_b[j] + disp_b[j]) = r2[perm_b[j]] + trans_b
+
+  // apply R=op.matrix to rotate mapped structure and determine new mapping:
+  // L1 * T_b * N_b = R * L1 * T_a * N_a
+  // use: T_b = L1.inv * R * L1 * T_a * N_a, N_b = I
+
+  // F_a * R.inv * R * (r1_a[i] + disp_a[i]) = r2[perm_a[i]] + trans_a
+  // use: F_b = F_a * R.inv; disp_b = R * disp_a, trans_b = trans_a,
+  // but need to determine perm_b. To do so, make new superlattice, L1 * T_b,
+  // then apply op to sites l_a to find transformed sites, l_b
+
+  // the input mapping, 'a'
+  Eigen::Matrix3d L1 = prim.lattice().lat_column_mat();
+  Eigen::Matrix3d F_a = lmap.deformation_gradient;
+  Eigen::Matrix3d T_a = lmap.transformation_matrix_to_super;
+  Eigen::Matrix3d N_a = lmap.reorientation;
+
+  xtal::Superlattice superlattice_a(prim.lattice(),
+                                    xtal::Lattice(L1 * T_a * N_a));
+  xtal::UnitCellCoordIndexConverter converter_a(
+      superlattice_a.transformation_matrix_to_super(), n_basis);
+  Eigen::MatrixXd const &disp_a = amap.displacement;
+  std::vector<Index> const &perm_a = amap.permutation;
+  Eigen::Vector3d const &trans_a = amap.translation;
+
+  // the equivalent mapping, 'b'
+  Eigen::Matrix3d F_b = F_a * op.matrix.transpose();
+  // Eigen::Matrix3l T_b = L1.inverse() * op.matrix * L1 * T_a * N_a;
+  // xtal::Superlattice superlattice_b (prim.lattice(), xtal::Lattice(L1 * T_b *
+  // N_b));
+  xtal::Superlattice superlattice_b(prim.lattice(), target);
+  Eigen::Matrix3l T_b = superlattice_b.transformation_matrix_to_super();
+  Eigen::Matrix3l N_b = Eigen::Matrix3l::Identity();
+
+  // determine the equivalent disp_b and perm_b
+  xtal::UnitCellCoordIndexConverter converter_b(T_b, n_basis);
+  Eigen::MatrixXd disp_b(3, converter_b.total_sites());
+  std::vector<Index> perm_b(converter_b.total_sites(), -1);
+  Eigen::Vector3d trans_b = trans_a;
+
+  /// Make the UnitCellCoordRep for op
+  xtal::UnitCellCoordRep rep =
+      make_unitcellcoord_rep(op, prim.lattice(), symop_site_map(op, prim));
+
+  for (Index l_a = 0; l_a < converter_a.total_sites(); ++l_a) {
+    xtal::UnitCellCoord site = converter_a(l_a);
+    xtal::UnitCellCoord transformed_site = copy_apply(rep, site);
+    Index l_b = converter_b(transformed_site);
+    disp_b.col(l_b) = op.matrix * disp_a.col(l_a);
+    perm_b[l_b] = perm_a[l_a];
+  }
+
+  return StructureMapping(
+      smap.shared_prim,
+      LatticeMapping(F_b, T_b.cast<double>(), N_b.cast<double>()),
+      AtomMapping(disp_b, perm_b, trans_b));
+}
+
+/// \brief Make an equivalent mapping to a different, but symmetrically
+///     equivalent superlattice of the prim
+///
+/// \param target The superlattice of the prim that the equivalent
+///     mapping maps to.
+/// \param structure_mapping A structure mapping
+/// \param group The prim factor group (or a subset) used to generate
+///     equivalent superlattices
+///
+/// \returns An equivalent structure mapping, for which the mapped
+///     structure (excluding strain) has the target superlattice of
+///     the prim.
+StructureMapping make_mapping_to_equivalent_superlattice(
+    xtal::Lattice const &target, StructureMapping const &structure_mapping,
+    std::vector<xtal::SymOp> const &group) {
+  auto const &smap = structure_mapping;
+
+  Eigen::Matrix3d L1 = smap.shared_prim->lattice().lat_column_mat();
+  Eigen::Matrix3d T_a = smap.lattice_mapping.transformation_matrix_to_super;
+  Eigen::Matrix3d N_a = smap.lattice_mapping.reorientation;
+  xtal::Lattice current(L1 * T_a * N_a);
+
+  auto res = is_equivalent_superlattice(target, current, group.begin(),
+                                        group.end(), target.tol());
+
+  return make_mapping_to_equivalent_structure(*res.first, target, smap);
 }
 
 }  // namespace mapping
