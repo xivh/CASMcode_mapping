@@ -5,6 +5,7 @@ import libcasm.xtal.structures as xtal_structures
 from libcasm.mapping.methods import map_atoms, map_lattices, map_structures
 import libcasm.mapping.info as info
 
+
 def test_structure_mapping_io():
 
     prim = xtal_prims.BCC(r=1.0, occ_dof=["A", "B", "Va"])
@@ -18,7 +19,8 @@ def test_structure_mapping_io():
         prim_factor_group=prim_factor_group,
         max_vol=2,
         max_cost=1e20,
-        min_cost=0.)
+        min_cost=0.0,
+    )
 
     # StructureMappingResults
     assert len(structure_mappings) == 3
@@ -79,8 +81,9 @@ def test_lattice_and_atom_mapping_io():
         transformation_matrix_to_super=T,
         lattice1_point_group=point_group,
         max_cost=1e20,
-        min_cost=0.,
-        k_best=1)
+        min_cost=0.0,
+        k_best=1,
+    )
 
     # LatticeMappingResults
     assert len(lattice_mappings) == 3
@@ -106,8 +109,9 @@ def test_lattice_and_atom_mapping_io():
         prim_factor_group=prim_factor_group,
         atom_cost_method="isotropic_atom_cost",
         max_cost=1e20,
-        min_cost=0.,
-        k_best=10)
+        min_cost=0.0,
+        k_best=10,
+    )
 
     # AtomMappingResults
     assert len(atom_mappings) == 2

@@ -61,6 +61,6 @@ As an example of running a specific test, do:
 Formatting
 ==========
 
-Use yapf. From CASMcode_mapping/python do:
+Use black. From CASMcode_mapping/python do:
 
-    yapf -ir .
+    black .

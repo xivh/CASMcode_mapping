@@ -209,7 +209,7 @@ PYBIND11_MODULE(_methods, m) {
           The reference "parent" structure, with lattice :math:`L_1`,
           represented as Prim, with occupation DoF indicating which atom
           types are allowed to map to each basis site.
-      structure : libcasm.xtal.Lattice
+      structure : libcasm.xtal.Structure
           The "child" structure, with lattice :math:`L_2`.
       max_vol : int
           The maximum parent superstructure volume to consider, as a
