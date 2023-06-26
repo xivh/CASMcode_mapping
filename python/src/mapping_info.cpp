@@ -169,7 +169,7 @@ PYBIND11_MODULE(_info, m) {
 
           Returns
           -------
-          interpolated_lattice_mapping : libcasm.mapping.info.LatticeMapping
+          interpolated_lattice_mapping : ~libcasm.mapping.info.LatticeMapping
               Interpolated lattice mapping
           )pbdoc")
       .def_static(
@@ -207,8 +207,8 @@ PYBIND11_MODULE(_info, m) {
 
           lattice_cost : float
               The cost of lattice mapping. The value depends on the method used.
-          lattice_mapping : libcasm.mapping.LatticeMapping
-              A :class:`~libcasm.mapping.LatticeMapping`
+          lattice_mapping : ~libcasm.mapping.info.LatticeMapping
+              A :class:`~libcasm.mapping.info.LatticeMapping`
           )pbdoc")
       .def(
           "lattice_cost",
@@ -243,7 +243,7 @@ PYBIND11_MODULE(_info, m) {
           Parameters
           ----------
 
-          data : List[libcasm.mapping.ScoredLatticeMapping]
+          data : List[:class:`~libcasm.mapping.info.ScoredLatticeMapping`]
               The list of scored lattice mappings.
           )pbdoc")
       .def("size", &LatticeMappingResults::size,
@@ -283,7 +283,7 @@ PYBIND11_MODULE(_info, m) {
      A mapping of atoms between two structures
 
      An atom mapping is defined in the context of an existing
-     :class:`~libcasm.mapping.LatticeMapping`. An atom mapping has the form:
+     :class:`~libcasm.mapping.info.LatticeMapping`. An atom mapping has the form:
 
      .. math::
 
@@ -302,7 +302,7 @@ PYBIND11_MODULE(_info, m) {
                T * N, parent_structure)
 
        where :math:`T`, and :math:`N` are from a
-       :class:`~libcasm.mapping.LatticeMapping`. Then the i-th atom coordinate,
+       :class:`~libcasm.mapping.info.LatticeMapping`. Then the i-th atom coordinate,
        :math:`\vec{r_1}(i)`, is equal to:
 
        .. code-block:: Python
@@ -312,7 +312,7 @@ PYBIND11_MODULE(_info, m) {
      - :math:`\vec{r_2}(i)` is the Cartesian coordinates of i-th atom in
        the child structure.
      - :math:`F` is the parent-to-child deformation gradient tensor from a
-       :class:`~libcasm.mapping.LatticeMapping`.
+       :class:`~libcasm.mapping.info.LatticeMapping`.
      - :math:`p_i` is a permutation vector, specifying which atom in the
        child structure (:math:`p_i`) is mapped to the i-th site of the parent
        superstructure. Values of :math:`p_i` greater than the number of atoms
@@ -350,8 +350,9 @@ PYBIND11_MODULE(_info, m) {
           )pbdoc")
       .def(
           "displacement", [](AtomMapping const &m) { return m.displacement; },
-          R"pbdoc(Returns the shape=(3,n) matrix whose columns are the "
-           "Cartesian atom displacements :math:`\vec{d}(i)`.)pbdoc")
+          R"pbdoc(
+            Returns the shape=(3,n) matrix whose columns are the Cartesian atom displacements :math:`\vec{d}(i)`.
+          )pbdoc")
       .def(
           "permutation", [](AtomMapping const &m) { return m.permutation; },
           R"pbdoc(Returns the permutation vector, :math:`p_i`.)pbdoc")
@@ -377,7 +378,7 @@ PYBIND11_MODULE(_info, m) {
 
           Returns
           -------
-          interpolated_atom_mapping : libcasm.mapping.info.AtomMapping
+          interpolated_atom_mapping : ~libcasm.mapping.info.AtomMapping
               Interpolated atom mapping
           )pbdoc")
       .def_static(
@@ -410,8 +411,8 @@ PYBIND11_MODULE(_info, m) {
 
           atom_cost : float
               The cost of atom mapping. The value depends on the method used.
-          atom_mapping : libcasm.mapping.AtomMapping
-              A :class:`~libcasm.mapping.AtomMapping`
+          atom_mapping : ~libcasm.mapping.info.AtomMapping
+              A :class:`~libcasm.mapping.info.AtomMapping`
           )pbdoc")
       .def(
           "atom_cost", [](ScoredAtomMapping const &m) { return m.atom_cost; },
@@ -443,7 +444,7 @@ PYBIND11_MODULE(_info, m) {
           Parameters
           ----------
 
-          data : List[libcasm.mapping.ScoredAtomMapping]
+          data : List[:class:`~libcasm.mapping.info.ScoredAtomMapping`]
               The list of scored atom mappings.
           )pbdoc")
       .def("size", &AtomMappingResults::size,
@@ -484,8 +485,8 @@ PYBIND11_MODULE(_info, m) {
     A structure mapping is a combination of:
 
     - A :class:`~libcasm.xtal.Prim`
-    - A :class:`~libcasm.mapping.LatticeMapping`
-    - An :class:`~libcasm.mapping.AtomMapping`
+    - A :class:`~libcasm.mapping.info.LatticeMapping`
+    - An :class:`~libcasm.mapping.info.AtomMapping`
 
     See those class descriptions for details of the mappings.
 
@@ -497,12 +498,12 @@ PYBIND11_MODULE(_info, m) {
           Parameters
           ----------
 
-          prim : libcasm.xtal.Prim
+          prim : ~libcasm.xtal.Prim
               A :class:`~libcasm.xtal.Prim`
-          lattice_mapping : libcasm.mapping.LatticeMapping
-              A :class:`~libcasm.mapping.LatticeMapping`
-          atom_mapping : libcasm.mapping.AtomMapping
-              An :class:`~libcasm.mapping.AtomMapping`
+          lattice_mapping : ~libcasm.mapping.info.LatticeMapping
+              A :class:`~libcasm.mapping.info.LatticeMapping`
+          atom_mapping : ~libcasm.mapping.info.AtomMapping
+              An :class:`~libcasm.mapping.info.AtomMapping`
           )pbdoc")
       .def(
           "prim", [](StructureMapping const &m) { return m.shared_prim; },
@@ -510,11 +511,11 @@ PYBIND11_MODULE(_info, m) {
       .def(
           "lattice_mapping",
           [](StructureMapping const &m) { return m.lattice_mapping; },
-          "Returns the :class:`~libcasm.mapping.LatticeMapping`.")
+          "Returns the :class:`~libcasm.mapping.info.LatticeMapping`.")
       .def(
           "atom_mapping",
           [](StructureMapping const &m) { return m.atom_mapping; },
-          "Returns the :class:`~libcasm.mapping.AtomMapping`.")
+          "Returns the :class:`~libcasm.mapping.info.AtomMapping`.")
       .def(
           "interpolated",
           [](mapping::StructureMapping const &m, double f) {
@@ -547,7 +548,7 @@ PYBIND11_MODULE(_info, m) {
 
           Returns
           -------
-          interpolated_structure_mapping : libcasm.mapping.info.StructureMapping
+          interpolated_structure_mapping : ~libcasm.mapping.info.StructureMapping
               Interpolated structure mapping
           )pbdoc")
       .def_static(
@@ -590,8 +591,8 @@ PYBIND11_MODULE(_info, m) {
               The cost of atom mapping. The value depends on the method used.
           total_cost : float
               The cost of structure mapping. The value depends on the method used.
-          structure_mapping : libcasm.mapping.StructureMapping
-              A :class:`~libcasm.mapping.StructureMapping`
+          structure_mapping : ~libcasm.mapping.info.StructureMapping
+              A :class:`~libcasm.mapping.info.StructureMapping`
           )pbdoc")
       .def(
           "atom_cost",
@@ -636,7 +637,7 @@ PYBIND11_MODULE(_info, m) {
           Parameters
           ----------
 
-          data : List[libcasm.mapping.ScoredAtomMapping]
+          data : List[:class:`~libcasm.mapping.info.ScoredAtomMapping`]
               The list of scored atom mappings.
           )pbdoc")
       .def("size", &StructureMappingResults::size,
@@ -691,9 +692,9 @@ PYBIND11_MODULE(_info, m) {
 
       Parameters
       ----------
-      first : libcasm.mapping.StructureMapping
-          The first StructureMapping
-      second : libcasm.mapping.StructureMapping
+      first : ~libcasm.mapping.info.StructureMapping
+          The first :class:`~libcasm.mapping.info.StructureMapping`
+      second : ~libcasm.mapping.info.StructureMapping
           The second StructureMapping
 
       Returns
@@ -712,7 +713,7 @@ PYBIND11_MODULE(_info, m) {
 
    The total structure mapping cost, total_cost, is lattice_cost_weight*lattice_cost + (1.0 - lattice_cost_weight)*atom_cost, where lattice_cost_weight is an input to the :func:`~libcasm.mapping.map_structures` method.
 
-   See those :class:`~libcasm.mapping.LatticeMapping` and :class:`~libcasm.mapping.AtomMapping` for details of the lattice and atom mappings.
+   See those :class:`~libcasm.mapping.info.LatticeMapping` and :class:`~libcasm.mapping.info.AtomMapping` for details of the lattice and atom mappings.
 
    )pbdoc")
       .def(py::init<double, double, double>(), py::arg("lattice_cost"),
