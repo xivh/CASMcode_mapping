@@ -230,7 +230,7 @@ PYBIND11_MODULE(_mapsearch, m) {
 
         Parameters
         ----------
-        prim_structure_data : libcasm.mapping.mapsearch.StructureSearchData
+        prim_structure_data : ~libcasm.mapping.mapsearch.StructureSearchData
             Search data for the primitive structure being mapped
         transformation_matrix_to_super : array_like, shape=(3,3)
             Integer transformation matrix, :math:`T`, that generates the
@@ -240,7 +240,7 @@ PYBIND11_MODULE(_mapsearch, m) {
 
         Returns
         -------
-        superstructure_data : libcasm.mapping.mapsearch.StructureSearchData
+        superstructure_data : ~libcasm.mapping.mapsearch.StructureSearchData
             Search data for a super structure.
         )pbdoc");
 
@@ -251,7 +251,7 @@ PYBIND11_MODULE(_mapsearch, m) {
 
       This object holds shared data for use by all structure mappings
       in the context of a single lattice mapping
-      (`~libcasm.mapping.info.LatticeMapping`).
+      (:class:`~libcasm.mapping.info.LatticeMapping`).
       )pbdoc")
       .def(py::init<std::shared_ptr<PrimSearchData const>,
                     std::shared_ptr<StructureSearchData const>,
@@ -264,11 +264,11 @@ PYBIND11_MODULE(_mapsearch, m) {
           Parameters
           ----------
 
-          prim_data : libcasm.mapping.mapsearch.PrimSearchData
+          prim_data : ~libcasm.mapping.mapsearch.PrimSearchData
               Search data for a prim being mapped to
-          structure_data : libcasm.mapping.mapsearch.StructureSearchData
+          structure_data : ~libcasm.mapping.mapsearch.StructureSearchData
               Search data for the structure being mapped
-          lattice_mapping : libcasm.mapping.info.LatticeMapping
+          lattice_mapping : ~libcasm.mapping.info.LatticeMapping
               Lattice mapping between the prim being mapped to and
               the structure being mapped
           )pbdoc")
@@ -311,7 +311,7 @@ PYBIND11_MODULE(_mapsearch, m) {
           Returns the lattice of the ideal supercell.
 
           The lattice of the ideal supercell is :math:`S_1 = L_1 * T * N`
-          as defined in `~libcasm.mapping.info.LatticeMapping`).
+          as defined in :class:`~libcasm.mapping.info.LatticeMapping`).
           )pbdoc")
       .def(
           "N_supercell_site",
@@ -331,14 +331,14 @@ PYBIND11_MODULE(_mapsearch, m) {
           -------
           atom_coordinate_cart_in_supercell : numpy.ndarray[numpy.float64[m, n]]
               This is :math:`F^{-1}\vec{r_2}`, as defined in
-              `~libcasm.mapping.info.AtomMapping`, a shape=(3,N_atom)
+              :class:`~libcasm.mapping.info.AtomMapping`, a shape=(3,N_atom)
               matrix with columns containing the Cartesian coordinates of the
               structure's atoms in the state after the inverse lattice
               mapping deformation is applied.
 
               The "supercell" refers to the ideal supercell, with superlattice,
               :math:`S_1 = L_1 * T * N`, as defined in
-              `~libcasm.mapping.info.LatticeMapping`.
+              :class:`~libcasm.mapping.info.LatticeMapping`.
           )pbdoc")
       .def(
           "supercell_site_coordinate_cart",
@@ -380,7 +380,7 @@ PYBIND11_MODULE(_mapsearch, m) {
 
         Parameters
         ----------
-        lattice_mapping_data : libcasm.mapping.mapsearch.LatticeMappingSearchData
+        lattice_mapping_data : ~libcasm.mapping.mapsearch.LatticeMappingSearchData
             Data describing a lattice mapping between a prim and a structure
 
         Returns
@@ -461,7 +461,7 @@ PYBIND11_MODULE(_mapsearch, m) {
           Parameters
           ----------
 
-          lattice_mapping_data : libcasm.mapping.mapsearch.LatticeMappingSearchData
+          lattice_mapping_data : ~libcasm.mapping.mapsearch.LatticeMappingSearchData
               Search data for a particular lattice mapping between a prim and
               the structure being mapped.
           trial_translation_cart : array_like, shape=(3,)
@@ -583,14 +583,14 @@ PYBIND11_MODULE(_mapsearch, m) {
 
           Parameters
           ----------
-          search : libcasm.mapping.mapsearch.MappingSearch
+          search : ~libcasm.mapping.mapsearch.MappingSearch
               A :class:`~libcasm.mapping.mapsearch.MappingSearch` method.
           lattice_cost : float
               The lattice mapping cost.
-          lattice_mapping_data : libcasm.mapping.mapsearch.LatticeMappingSearchData
+          lattice_mapping_data : ~libcasm.mapping.mapsearch.LatticeMappingSearchData
               Search data for a particular lattice mapping between a prim and
               the structure being mapped.
-          atom_mapping_data : libcasm.mapping.mapsearch.AtomMappingSearchData
+          atom_mapping_data : ~libcasm.mapping.mapsearch.AtomMappingSearchData
               Search data for a particular lattice mapping and choice of
               trial translation between a prim and the structure being mapped.
           forced_on : Dict[int, int]
@@ -687,7 +687,7 @@ PYBIND11_MODULE(_mapsearch, m) {
               Keep the k_best mappings with lowest total cost that also
               satisfy the min/max cost criteria. Approximate ties with the
               current k_best result are also kept.
-          atom_cost_f : function, default=`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost()`
+          atom_cost_f : function, default=:class:`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost()`
               Function used to calculate the atom mapping cost. Expected to
               match the same signature as :class:`~libcasm.mapping.mapsearch.IsotropicAtomCost`.
               Possible atom mapping cost functions:
@@ -695,16 +695,16 @@ PYBIND11_MODULE(_mapsearch, m) {
               - :class:`~libcasm.mapping.mapsearch.IsotropicAtomCost`
               - :class:`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost`
 
-          total_cost_f : function, default=`~libcasm.mapping.mapsearch.WeightedTotalCost()`
+          total_cost_f : function, default=:class:`~libcasm.mapping.mapsearch.WeightedTotalCost()`
               Function used to calculate the total mapping cost. Expected to
               match the same signature as :class:`~libcasm.mapping.mapsearch.WeightedTotalCost`.
               Possible total mapping cost functions:
 
               - :class:`~libcasm.mapping.mapsearch.WeightedTotalCost()`
 
-          atom_to_site_cost_f : function, default=:function:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`
+          atom_to_site_cost_f : function, default=:func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`
               Function used to calculate the elements of the assignment problem cost
-              matrix. Expected to match the same signature as :function:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`.
+              matrix. Expected to match the same signature as :func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`.
               Possible atom-to-site mapping cost functions:
 
               - :class:`~libcasm.mapping.mapsearch.WeightedTotalCost()`
@@ -749,7 +749,7 @@ PYBIND11_MODULE(_mapsearch, m) {
           lattice_cost : float
               The cost of the lattice mapping that forms the context
               in which atom mappings are solved.
-          lattice_mapping_data : libcasm.mapping.mapsearch.LatticeMappingSearchData
+          lattice_mapping_data : ~libcasm.mapping.mapsearch.LatticeMappingSearchData
               Holds the lattice mapping and related data that forms the context
               in which atom mappings are solved.
           trial_translation_cart : array_like, shape=(3,)
@@ -790,7 +790,7 @@ PYBIND11_MODULE(_mapsearch, m) {
 
           Returns
           -------
-          structure_mappings : libcasm.mapping.info.StructureMappingResults
+          structure_mappings : ~libcasm.mapping.info.StructureMappingResults
               A :class:`~libcasm.mapping.info.StructureMappingResults` object,
               giving possible structure mappings, sorted by total cost.
           )pbdoc");
@@ -835,7 +835,7 @@ PYBIND11_MODULE(_mapsearch, m) {
 
           Parameters
           ----------
-          search : libcasm.mapping.mapsearch.MappingSearch
+          search : ~libcasm.mapping.mapsearch.MappingSearch
               Search instance to manage.
           )pbdoc");
 

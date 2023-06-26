@@ -168,7 +168,7 @@ PYBIND11_MODULE(_methods, m) {
 
       Returns
       -------
-      lattice_mappings : libcasm.mapping.info.LatticeMappingResults
+      lattice_mappings : ~libcasm.mapping.info.LatticeMappingResults
           A :class:`~libcasm.mapping.info.LatticeMappingResults` object,
           giving possible lattice mappings, sorted by lattice mapping cost.
       )pbdoc",
@@ -247,7 +247,7 @@ PYBIND11_MODULE(_methods, m) {
 
       Returns
       -------
-      structure_mappings : libcasm.mapping.info.StructureMappingResults
+      structure_mappings : ~libcasm.mapping.info.StructureMappingResults
           A :class:`~libcasm.mapping.info.StructureMappingResults` object,
           giving possible structure mappings, sorted by total cost.
       )pbdoc",
@@ -318,7 +318,7 @@ PYBIND11_MODULE(_methods, m) {
           types are allowed to map to each basis site.
       structure : libcasm.xtal.Lattice
           The "child" structure, with lattice :math:`L_2`.
-      lattice_mapping : libcasm.mapping.info.LatticeMapping
+      lattice_mapping : ~libcasm.mapping.info.LatticeMapping
           Defines the lattice mapping from the "parent" structure to
           the "child" structure.
       prim_factor_group : List[libcasm.xtal.SymOp], optional
@@ -341,7 +341,7 @@ PYBIND11_MODULE(_methods, m) {
 
       Returns
       -------
-      atom_mappings : libcasm.mapping.info.AtomMappingResults
+      atom_mappings : ~libcasm.mapping.info.AtomMappingResults
           A :class:`~libcasm.mapping.info.AtomMappingResults` object,
           giving possible atom mappings, sorted by atom mapping cost.
       )pbdoc",
@@ -377,9 +377,9 @@ PYBIND11_MODULE(_methods, m) {
 
       Parameters
       ----------
-      parent_lattice : libcasm.xtal.Lattice
+      parent_lattice : ~libcasm.xtal.Lattice
           The reference "parent" lattice.
-      lattice_mapping : libcasm.mapping.info.LatticeMapping
+      lattice_mapping : ~libcasm.mapping.info.LatticeMapping
           The lattice mapping transformation
 
       Returns
@@ -416,14 +416,14 @@ PYBIND11_MODULE(_methods, m) {
 
       Parameters
       ----------
-      structure_mapping : libcasm.mapping.info.StructureMapping
+      structure_mapping : ~libcasm.mapping.info.StructureMapping
           The structure mapping transformation
-      unmapped_structure : libcasm.xtal.Structure
+      unmapped_structure : ~libcasm.xtal.Structure
           The unmapped "child" structure
 
       Returns
       -------
-      mapped_structure : libcasm.xtal.Structure
+      mapped_structure : ~libcasm.xtal.Structure
           The mapped structure, with implied vacancies, strain, and
           atomic displacement
       )pbdoc",
