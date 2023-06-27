@@ -114,7 +114,7 @@ def test_lattice_and_atom_mapping_io():
         structure=hcp_structure,
         lattice_mapping=lattice_mappings[0],
         prim_factor_group=prim_factor_group,
-        atom_cost_method="isotropic_atom_cost",
+        atom_cost_method="isotropic_disp_cost",
         max_cost=1e20,
         min_cost=0.0,
         k_best=10,
