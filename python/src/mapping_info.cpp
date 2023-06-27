@@ -253,7 +253,7 @@ PYBIND11_MODULE(_info, m) {
           "Returns the list of scored lattice mappings.")
       .def("__len__", &LatticeMappingResults::size)
       .def("__getitem__",
-           [](LatticeMappingResults const &m, Index i) { return m.data[i]; })
+           [](LatticeMappingResults const &m, Index i) { return m.data.at(i); })
       .def(
           "__iter__",
           [](LatticeMappingResults const &m) {
@@ -454,7 +454,7 @@ PYBIND11_MODULE(_info, m) {
           "Returns the list of scored atom mappings.")
       .def("__len__", &AtomMappingResults::size)
       .def("__getitem__",
-           [](AtomMappingResults const &m, Index i) { return m.data[i]; })
+           [](AtomMappingResults const &m, Index i) { return m.data.at(i); })
       .def(
           "__iter__",
           [](AtomMappingResults const &m) {
@@ -647,7 +647,7 @@ PYBIND11_MODULE(_info, m) {
           "Returns the list of scored structure mappings.")
       .def("__len__", &StructureMappingResults::size)
       .def("__getitem__",
-           [](StructureMappingResults const &m, Index i) { return m.data[i]; })
+           [](StructureMappingResults const &m, Index i) { return m.data.at(i); })
       .def(
           "__iter__",
           [](StructureMappingResults const &m) {
