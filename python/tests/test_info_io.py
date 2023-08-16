@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
+
+import libcasm.mapping.info as info
 import libcasm.xtal as xtal
 import libcasm.xtal.prims as xtal_prims
 import libcasm.xtal.structures as xtal_structures
 from libcasm.mapping.methods import map_atoms, map_lattices, map_structures
-import libcasm.mapping.info as info
 
 
 def test_structure_mapping_io():

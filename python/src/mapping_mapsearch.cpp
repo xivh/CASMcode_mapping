@@ -21,7 +21,7 @@ using namespace CASM::mapping;
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
-PYBIND11_MODULE(_mapsearch, m) {
+PYBIND11_MODULE(_mapping_mapsearch, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
@@ -33,8 +33,8 @@ PYBIND11_MODULE(_mapsearch, m) {
         The libcasm.mapping.mapsearch module contains data structures and methods
         used to perform structure mapping searches.
         )pbdoc";
-  py::module::import("libcasm.xtal");
-  py::module::import("libcasm.mapping.info");
+  py::module_::import("libcasm.xtal");
+  py::module_::import("libcasm.mapping.info");
 
   py::class_<PrimSearchData, std::shared_ptr<PrimSearchData>>(
       m, "PrimSearchData", R"pbdoc(

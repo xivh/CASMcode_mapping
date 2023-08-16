@@ -26,7 +26,7 @@ using namespace CASM::mapping;
 
 }  // namespace CASMpy
 
-PYBIND11_MODULE(_methods, m) {
+PYBIND11_MODULE(_mapping_methods, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
@@ -39,8 +39,8 @@ PYBIND11_MODULE(_methods, m) {
         structure mapping methods.
 
     )pbdoc";
-  py::module::import("libcasm.xtal");
-  py::module::import("libcasm.mapping.info");
+  py::module_::import("libcasm.xtal");
+  py::module_::import("libcasm.mapping.info");
 
   m.def("map_lattices", &map_lattices, R"pbdoc(
       Find mappings between two lattices

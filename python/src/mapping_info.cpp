@@ -32,7 +32,7 @@ StructureMapping make_structure_mapping(
 
 }  // namespace CASMpy
 
-PYBIND11_MODULE(_info, m) {
+PYBIND11_MODULE(_mapping_info, m) {
   using namespace CASMpy;
 
   m.doc() = R"pbdoc(
@@ -45,7 +45,7 @@ PYBIND11_MODULE(_info, m) {
         transformations.
 
     )pbdoc";
-  py::module::import("libcasm.xtal");
+  py::module_::import("libcasm.xtal");
 
   py::class_<LatticeMapping>(m, "LatticeMapping", R"pbdoc(
       A mapping between two lattices
@@ -646,8 +646,8 @@ PYBIND11_MODULE(_info, m) {
           "data", [](StructureMappingResults const &m) { return m.data; },
           "Returns the list of scored structure mappings.")
       .def("__len__", &StructureMappingResults::size)
-      .def("__getitem__",
-           [](StructureMappingResults const &m, Index i) { return m.data.at(i); })
+      .def("__getitem__", [](StructureMappingResults const &m,
+                             Index i) { return m.data.at(i); })
       .def(
           "__iter__",
           [](StructureMappingResults const &m) {
