@@ -31,10 +31,10 @@ class StrainCostCalculator {
       Eigen::Matrix3d const &_deformation_gradient, double _vol_factor);
 
   // \brief Volumetric factor :
-  // pow(abs(_deformation_gradient.determinant()),1./3.), used to normalize the
-  // strain cost to make it volume-independent
+  // std::pow(std::abs(_deformation_gradient.determinant()),1./3.), used to
+  // normalize the strain cost to make it volume-independent
   static double vol_factor(Eigen::Matrix3d const &_deformation_gradient) {
-    return pow(std::abs(_deformation_gradient.determinant()), 1. / 3.);
+    return std::pow(std::abs(_deformation_gradient.determinant()), 1. / 3.);
   }
 
   //\brief Anisotropic strain cost; utilizes stored gram matrix to compute

@@ -35,7 +35,7 @@ double atomic_cost_child(const MappingNode &mapped_result, Index Nsites) {
   double atomic_vol =
       mapped_result.lattice_node.parent.superlattice().volume() /
       double(Nsites) / mapped_result.lattice_node.stretch.determinant();
-  return pow(3. * abs(atomic_vol) / (4. * M_PI), -2. / 3.) *
+  return std::pow(3. * std::abs(atomic_vol) / (4. * M_PI), -2. / 3.) *
          (mapped_result.lattice_node.stretch.inverse() *
           mapped_result.atom_displacement)
              .squaredNorm() /
@@ -49,7 +49,8 @@ double atomic_cost_parent(const MappingNode &mapped_result, Index Nsites) {
   double atomic_vol =
       mapped_result.lattice_node.parent.superlattice().volume() /
       double(Nsites);
-  return pow(3. * abs(atomic_vol) / (4. * M_PI), -2. / 3.) *
+
+  return std::pow(3. * std::abs(atomic_vol) / (4. * M_PI), -2. / 3.) *
          (mapped_result.atom_displacement).squaredNorm() / double(Nsites);
 }
 

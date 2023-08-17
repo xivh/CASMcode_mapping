@@ -686,7 +686,7 @@ bool LatticeMap::_check_canonical() const {
 double isotropic_strain_cost(Eigen::Matrix3d const &deformation_gradient) {
   // written using convention B = V - I of the mapping paper:
   Eigen::Matrix3d const &F_reverse = deformation_gradient;
-  double vol_factor = pow(std::abs(F_reverse.determinant()), 1. / 3.);
+  double vol_factor = std::pow(std::abs(F_reverse.determinant()), 1. / 3.);
 
   Eigen::Matrix3d I = Eigen::Matrix3d::Identity(3, 3);
   Eigen::Matrix3d U_reverse_normalized =
