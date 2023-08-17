@@ -8,6 +8,49 @@ import libcasm.xtal.prims as xtal_prims
 import libcasm.xtal.structures as xtal_structures
 
 
+def make_geometric_atom_cost(
+    supercell_lattice_column_vector_matrix,
+    displacement,
+):
+    S = supercell_lattice_column_vector_matrix
+    N_site = displacement.shape[1]
+    volume_per_site = np.abs(np.linalg.det(S)) / N_site
+    displacement_squaredNorm = np.sum(displacement**2)
+    geometric_atom_cost = (
+        math.pow(3 * volume_per_site / (4.0 * np.pi), -2.0 / 3.0)
+        * displacement_squaredNorm
+        / N_site
+    )
+    # print("volume_per_site:", volume_per_site)
+    # print("displacement_squaredNorm:", displacement_squaredNorm)
+    return geometric_atom_cost
+
+
+def make_isotropic_atom_cost(
+    prim_lattice_column_vector_matrix,
+    lattice_mapping,
+    displacement,
+):
+    L1 = prim_lattice_column_vector_matrix
+    T = lattice_mapping.transformation_matrix_to_super()
+    N = lattice_mapping.reorientation()
+    U = lattice_mapping.right_stretch()
+
+    S1 = L1 @ T @ N
+    L2 = U @ S1
+    d = displacement
+    d_reverse = -U @ d
+
+    geometric_atom_cost_forward = make_geometric_atom_cost(S1, d)
+    geometric_atom_cost_reverse = make_geometric_atom_cost(L2, d_reverse)
+    isotropic_atom_cost = (
+        geometric_atom_cost_forward + geometric_atom_cost_reverse
+    ) / 2.0
+    # print("geometric_atom_cost_forward:", geometric_atom_cost_forward)
+    # print("geometric_atom_cost_reverse:", geometric_atom_cost_reverse)
+    return isotropic_atom_cost
+
+
 def check_mapping(prim, structure, structure_mapping):
     # print("structure:")
     # print("lattice_column_vector_matrix:\n",
@@ -76,6 +119,11 @@ def check_mapping(prim, structure, structure_mapping):
             x2 = r2[:, perm[i]] + trans
             d = xtal.min_periodic_displacement(structure.lattice(), x1, x2)
             assert math.isclose(np.linalg.norm(d), 0.0, abs_tol=1e-10)
+
+    # atom mapping cost:
+    # isotropic_atom_cost = make_isotropic_atom_cost(L1, lmap, disp)
+    # print("isotropic_atom_cost:", isotropic_atom_cost)
+
     # assert True == False
 
 
@@ -339,6 +387,6 @@ def test_bcc_hcp_mapping():
 
     assert len(structure_mappings)
     for i, smap in enumerate(structure_mappings):
+        check_mapping(prim, hcp_structure, smap)
         assert math.isclose(smap.lattice_cost(), 0.007297079413597657)
         assert math.isclose(smap.atom_cost(), 0.06274848406141671)
-        check_mapping(prim, hcp_structure, smap)

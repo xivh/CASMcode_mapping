@@ -39,7 +39,6 @@ Documentation
     Usage <usage>
     Reference <reference/libcasm/index>
     Bibliography <bibliography>
-    About libcasm-mapping <about>
 
 libcasm-mapping is available on GitHub_.
 

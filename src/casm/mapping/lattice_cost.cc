@@ -51,7 +51,7 @@ namespace mapping {
 ///
 double isotropic_strain_cost(Eigen::Matrix3d const &deformation_gradient) {
   Eigen::Matrix3d const &F = deformation_gradient;
-  double vol_factor = pow(std::abs(F.determinant()), 1. / 3.);
+  double vol_factor = std::pow(std::abs(F.determinant()), 1. / 3.);
 
   Eigen::Matrix3d I = Eigen::Matrix3d::Identity(3, 3);
   Eigen::Matrix3d U_normalized = polar_decomposition(F / vol_factor);

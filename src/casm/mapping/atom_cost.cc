@@ -29,8 +29,8 @@ double make_geometric_atom_cost(
     Eigen::MatrixXd const &displacement) {
   double N_site = displacement.cols();
   double volume_per_site =
-      abs(supercell_lattice_column_vector_matrix.determinant()) / N_site;
-  return pow(3. * volume_per_site / (4. * M_PI), -2. / 3.) *
+      std::abs(supercell_lattice_column_vector_matrix.determinant()) / N_site;
+  return std::pow(3. * volume_per_site / (4. * M_PI), -2. / 3.) *
          displacement.squaredNorm() / N_site;
 }
 
@@ -89,9 +89,11 @@ double make_isotropic_atom_cost(
   Eigen::MatrixXd const &d = displacement;
   Eigen::MatrixXd d_reverse = -U * d;
 
-  return (make_geometric_atom_cost(S1, d) +
-          make_geometric_atom_cost(L2, d_reverse)) /
-         2.;
+  double isotropic_atom_cost = (make_geometric_atom_cost(S1, d) +
+                                make_geometric_atom_cost(L2, d_reverse)) /
+                               2.;
+  std::cout << "cxx isotropic_atom_cost: " << isotropic_atom_cost << std::endl;
+  return isotropic_atom_cost;
 }
 
 /// \brief Return the symmetry-preserving component of displacement
