@@ -55,7 +55,7 @@ def as_int(a):
     b = np.rint(a)
     if not np.allclose(a, b):
         raise Exception("Error converting to integer array: not approximately integer")
-    return np.array(b, dtype=int, order="F")
+    return np.array(b, dtype=int)
 
 
 def check_mapping(prim, structure, structure_mapping):
@@ -105,8 +105,7 @@ def check_mapping(prim, structure, structure_mapping):
         atom_type=[x[0] for x in prim_occ_dof],
     )
 
-    S = np.matmul(T, N, order="F")
-    ideal_superstructure = xtal.make_superstructure(S, prim_structure)
+    ideal_superstructure = xtal.make_superstructure(T @ N, prim_structure)
     amap = structure_mapping.atom_mapping()
     r1 = ideal_superstructure.atom_coordinate_cart()
     r2 = structure.atom_coordinate_cart()
@@ -196,7 +195,6 @@ def test_map_structures_2():
             [0, 0, 2],
         ],
         dtype=int,
-        order="F",
     )
     structure = xtal.make_superstructure(T, unit_structure)
 
@@ -315,7 +313,7 @@ def test_map_structures_5():
     Ui = np.array([[1.01, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     Fi = Qi @ Ui
 
-    T = np.eye(3, dtype=int, order="F") * 2
+    T = np.eye(3, dtype=int) * 2
     prim_structure = xtal.Structure(
         lattice=prim.lattice(),
         atom_coordinate_frac=prim.coordinate_frac(),
