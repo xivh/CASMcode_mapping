@@ -51,6 +51,13 @@ def make_isotropic_atom_cost(
     return isotropic_atom_cost
 
 
+def as_int(a):
+    b = np.rint(a)
+    if not np.allclose(a, b):
+        raise Exception("Error converting to integer array: not approximately integer")
+    return np.array(b, dtype=int)
+
+
 def check_mapping(prim, structure, structure_mapping):
     # print("structure:")
     # print("lattice_column_vector_matrix:\n",
@@ -75,8 +82,8 @@ def check_mapping(prim, structure, structure_mapping):
     F = lmap.deformation_gradient()
     Q = lmap.isometry()
     U = lmap.right_stretch()
-    T = lmap.transformation_matrix_to_super()
-    N = lmap.reorientation()
+    T = as_int(lmap.transformation_matrix_to_super())
+    N = as_int(lmap.reorientation())
     # print("F:\n", F)
     # print("Q:\n", Q)
     # print("U:\n", U)
@@ -97,6 +104,7 @@ def check_mapping(prim, structure, structure_mapping):
         atom_coordinate_frac=prim.coordinate_frac(),
         atom_type=[x[0] for x in prim_occ_dof],
     )
+
     ideal_superstructure = xtal.make_superstructure(T @ N, prim_structure)
     amap = structure_mapping.atom_mapping()
     r1 = ideal_superstructure.atom_coordinate_cart()
@@ -305,7 +313,7 @@ def test_map_structures_5():
     Ui = np.array([[1.01, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     Fi = Qi @ Ui
 
-    T = np.eye(3) * 2
+    T = np.eye(3, dtype=int) * 2
     prim_structure = xtal.Structure(
         lattice=prim.lattice(),
         atom_coordinate_frac=prim.coordinate_frac(),
