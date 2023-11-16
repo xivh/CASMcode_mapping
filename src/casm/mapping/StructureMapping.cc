@@ -92,9 +92,11 @@ xtal::SimpleStructure make_mapped_structure(
 
   // make the parent structure from the prim for the ideal lattice
   // and site coordinates - occupants are set to "Va"
-  xtal::SimpleStructure parent_structure;
-  parent_structure.lat_column_mat = prim.lattice().lat_column_mat();
-  parent_structure.atom_info.resize(prim.basis().size());
+  xtal::SimpleStructure parent_structure = make_simple_structure(prim);
+  parent_structure.atom_info.names.resize(prim.basis().size(), "Va");
+  for (auto &el : parent_structure.atom_info.properties) {
+    el.second.setZero(Eigen::NoChange, prim.basis().size());
+  }
 
   xtal::SimpleStructure mapped_structure;
 
