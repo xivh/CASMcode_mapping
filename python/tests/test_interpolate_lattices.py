@@ -46,7 +46,6 @@ def test_interpolate_bcc_fcc_lattices():
     lattice = mapmethods.make_mapped_lattice(
         bcc_lattice, lattice_mapping.interpolated(0.2)
     )
-    print(lattice.column_vector_matrix().transpose())
     assert np.allclose(
         lattice.column_vector_matrix(),
         np.array(
@@ -62,7 +61,6 @@ def test_interpolate_bcc_fcc_lattices():
     lattice = mapmethods.make_mapped_lattice(
         bcc_lattice, lattice_mapping.interpolated(1.0)
     )
-    print(lattice.column_vector_matrix().transpose())
     assert np.allclose(
         lattice.column_vector_matrix(),
         np.array(

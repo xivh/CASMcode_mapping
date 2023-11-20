@@ -106,3 +106,12 @@ stamp-h1
 .ackrc
 .clang
 .nostyle.txt
+/.idea/codeStyles/codeStyleConfig.xml
+/.idea/dictionaries/brian.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/.gitignore
+/.idea/CASMcode_mapping.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/ruff.xml
+/.idea/vcs.xml

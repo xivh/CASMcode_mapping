@@ -95,6 +95,11 @@ xtal::SimpleStructure make_mapped_structure(
   xtal::SimpleStructure parent_structure;
   parent_structure.lat_column_mat = prim.lattice().lat_column_mat();
   parent_structure.atom_info.resize(prim.basis().size());
+  int b = 0;
+  for (auto const &site : prim.basis()) {
+    parent_structure.atom_info.coords.col(b) = site.const_cart();
+    ++b;
+  }
 
   xtal::SimpleStructure mapped_structure;
 
