@@ -125,7 +125,6 @@ def test_lattice_and_atom_mapping_io():
     assert len(atom_mappings) == 2
     assert isinstance(atom_mappings, info.AtomMappingResults)
     data = atom_mappings.to_dict()
-    print(info.pretty_json(data))
     assert isinstance(data, list)
     obj = info.AtomMappingResults.from_dict(data)
     assert isinstance(obj, info.AtomMappingResults)
@@ -135,7 +134,6 @@ def test_lattice_and_atom_mapping_io():
     scored = atom_mappings[0]
     assert isinstance(scored, info.ScoredAtomMapping)
     data = scored.to_dict()
-    print(info.pretty_json(data))
     assert isinstance(data, dict)
     obj = info.ScoredAtomMapping.from_dict(data)
     assert isinstance(obj, info.ScoredAtomMapping)
