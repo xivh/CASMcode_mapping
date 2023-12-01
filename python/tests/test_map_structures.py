@@ -1,7 +1,9 @@
+"""Test structure mapping"""
 import math
 
 import numpy as np
 
+import libcasm.mapping.info as mapinfo
 import libcasm.mapping.methods as mapmethods
 import libcasm.xtal as xtal
 import libcasm.xtal.prims as xtal_prims
@@ -12,14 +14,15 @@ def make_geometric_atom_cost(
     supercell_lattice_column_vector_matrix,
     displacement,
 ):
+    """Calculate geometric atom cost from scratch"""
     S = supercell_lattice_column_vector_matrix
-    N_site = displacement.shape[1]
-    volume_per_site = np.abs(np.linalg.det(S)) / N_site
+    n_site = displacement.shape[1]
+    volume_per_site = np.abs(np.linalg.det(S)) / n_site
     displacement_squaredNorm = np.sum(displacement**2)
     geometric_atom_cost = (
         math.pow(3 * volume_per_site / (4.0 * np.pi), -2.0 / 3.0)
         * displacement_squaredNorm
-        / N_site
+        / n_site
     )
     # print("volume_per_site:", volume_per_site)
     # print("displacement_squaredNorm:", displacement_squaredNorm)
@@ -31,6 +34,7 @@ def make_isotropic_atom_cost(
     lattice_mapping,
     displacement,
 ):
+    """Calculate isotropic atom cost from scratch"""
     L1 = prim_lattice_column_vector_matrix
     T = lattice_mapping.transformation_matrix_to_super()
     N = lattice_mapping.reorientation()
@@ -51,15 +55,35 @@ def make_isotropic_atom_cost(
     return isotropic_atom_cost
 
 
-def check_mapping(prim, structure, structure_mapping):
+def as_int(a: float):
+    """Round floating point arrays that are approximately integer to integer arrays"""
+    b = np.rint(a)
+    if not np.allclose(a, b):
+        raise Exception("Error converting to integer array: not approximately integer")
+    return np.array(b, dtype=int)
+
+
+def check_mapping(
+    prim: xtal.Prim,
+    structure: xtal.Structure,
+    structure_mapping: mapinfo.ScoredStructureMapping,
+):
+    """Check that a structure mapping does map between a structure and a superstructure
+    of a prim
+    """
     # print("structure:")
     # print("lattice_column_vector_matrix:\n",
     #       structure.lattice().column_vector_matrix())
     # print("atom_coordinate_frac:\n", structure.atom_coordinate_frac().transpose())
     # print("atom_type:", structure.atom_type())
-
     mapped_structure = mapmethods.make_mapped_structure(structure_mapping, structure)
+    mapped_structure_L = mapped_structure.lattice().column_vector_matrix()
     mapped_structure_atom_type = mapped_structure.atom_type()
+    mapped_structure_atom_coordinate_frac = mapped_structure.atom_coordinate_frac()
+    mapped_structure_atom_coordinate_cart = (
+        mapped_structure_L @ mapped_structure_atom_coordinate_frac
+    )
+
     # print("mapped_structure:")
     # print("lattice_column_vector_matrix:\n",
     #       mapped_structure.lattice().column_vector_matrix())
@@ -75,8 +99,8 @@ def check_mapping(prim, structure, structure_mapping):
     F = lmap.deformation_gradient()
     Q = lmap.isometry()
     U = lmap.right_stretch()
-    T = lmap.transformation_matrix_to_super()
-    N = lmap.reorientation()
+    T = as_int(lmap.transformation_matrix_to_super())
+    N = as_int(lmap.reorientation())
     # print("F:\n", F)
     # print("Q:\n", Q)
     # print("U:\n", U)
@@ -91,12 +115,14 @@ def check_mapping(prim, structure, structure_mapping):
 
     # atom mapping relation:
     # F ( r1(i) + disp(i) ) = r2(perm[i]) + trans
+    # print("Check atom mapping:")
     prim_occ_dof = prim.occ_dof()
     prim_structure = xtal.Structure(
         lattice=prim.lattice(),
         atom_coordinate_frac=prim.coordinate_frac(),
         atom_type=[x[0] for x in prim_occ_dof],
     )
+
     ideal_superstructure = xtal.make_superstructure(T @ N, prim_structure)
     amap = structure_mapping.atom_mapping()
     r1 = ideal_superstructure.atom_coordinate_cart()
@@ -110,21 +136,25 @@ def check_mapping(prim, structure, structure_mapping):
     for i in range(r1.shape[1]):
         b = i % len(prim_occ_dof)
         assert mapped_structure_atom_type[i] in prim_occ_dof[b]
-        # print(perm[i], r2.shape[1])
         if perm[i] >= r2.shape[1]:
             # implied vacancy
             assert mapped_structure_atom_type[i] == "Va"
         else:
+            # check unmapped structure vs mapping with Q
             x1 = F @ (r1[:, i] + disp[:, i])
             x2 = r2[:, perm[i]] + trans
+            d = xtal.min_periodic_displacement(structure.lattice(), x1, x2)
+            assert math.isclose(np.linalg.norm(d), 0.0, abs_tol=1e-10)
+
+            # check unmapped structure vs mapping without Q
+            x1 = U @ (r1[:, i] + disp[:, i])
+            x2 = mapped_structure_atom_coordinate_cart[:, i]
             d = xtal.min_periodic_displacement(structure.lattice(), x1, x2)
             assert math.isclose(np.linalg.norm(d), 0.0, abs_tol=1e-10)
 
     # atom mapping cost:
     # isotropic_atom_cost = make_isotropic_atom_cost(L1, lmap, disp)
     # print("isotropic_atom_cost:", isotropic_atom_cost)
-
-    # assert True == False
 
 
 def test_map_structures_0():
@@ -216,8 +246,8 @@ def test_map_structures_3():
     )
     coordinate_frac = np.array(
         [
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.5],
+            [0.0, 0.25, 0.25],
+            [0.0, 0.25, 0.75],
         ]
     ).transpose()
     occ_dof = [
@@ -305,7 +335,7 @@ def test_map_structures_5():
     Ui = np.array([[1.01, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     Fi = Qi @ Ui
 
-    T = np.eye(3) * 2
+    T = np.eye(3, dtype=int) * 2
     prim_structure = xtal.Structure(
         lattice=prim.lattice(),
         atom_coordinate_frac=prim.coordinate_frac(),
@@ -352,7 +382,7 @@ def test_bcc_fcc_mapping():
     prim = xtal_prims.BCC(r=1.0, occ_dof=["A", "B", "Va"])
     prim_factor_group = xtal.make_factor_group(prim)
 
-    fcc_structure = xtal_structures.FCC(r=1.0, atom_type="A")
+    fcc_structure = xtal_structures.FCC(r=1.0)
 
     structure_mappings = mapmethods.map_structures(
         prim,

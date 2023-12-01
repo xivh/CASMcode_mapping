@@ -7,13 +7,13 @@ requires = [
     "ninja",
     "pybind11>=2.6",
     "libcasm-global>=2.0.2",
-    "libcasm-xtal>=2.0a2",
+    "libcasm-xtal>=2.0a8",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "libcasm-mapping"
-version = "2.0a1"
+version = "2.0a2"
 authors = [
   { name="CASM developers", email="casm-developers@lists.engr.ucsb.edu" },
 ]
@@ -30,7 +30,7 @@ classifiers = [
 ]
 dependencies = [
   "libcasm-global>=2.0.2",
-  "libcasm-xtal>=2.0a2",
+  "libcasm-xtal>=2.0a8",
   "numpy",
 ]
 
