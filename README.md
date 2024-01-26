@@ -17,7 +17,7 @@ The libcasm-mapping package is the CASM structure mapping module. This includes:
 
 #### Usage
 
-See the [libcasm-mapping docs](todo).
+See the [libcasm docs](https://prisms-center.github.io/CASMcode_pydocs/libcasm/overview/latest/).
 
 
 #### About CASM
