@@ -637,8 +637,8 @@ PYBIND11_MODULE(_mapping_info, m) {
           Parameters
           ----------
 
-          data : List[:class:`~libcasm.mapping.info.ScoredAtomMapping`]
-              The list of scored atom mappings.
+          data : List[:class:`~libcasm.mapping.info.ScoredStructureMapping`]
+              The list of scored structure mappings.
           )pbdoc")
       .def("size", &StructureMappingResults::size,
            "Returns the number of scored structure mappings.")
