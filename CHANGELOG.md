@@ -5,6 +5,18 @@ All notable changes to `libcasm-mapping` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0a3] - Unreleased
+
+### Added
+
+- Build wheels for python3.12
+
+### Changed
+
+- Updated libcasm-global dependency version to 2.0.4
+- Updated libcasm-xtal dependency version to 2.0a9 
+
+
 ## [v2.0a2] - 2023-12-01
 
 ### Fixed
