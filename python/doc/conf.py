@@ -162,6 +162,19 @@ html_theme_options = {
             "type": "fontawesome",
         },
     ],
+    "favicons": [
+        {
+            "rel": "icon",
+            "sizes": "32x32",
+            "href": "favicon-32x32.png",
+        },
+        {
+            "rel": "icon",
+            "sizes": "16x16",
+            "href": "favicon-16x16.png",
+        },
+        {"rel": "apple-touch-icon", "sizes": "180x180", "href": "apple-touch-icon.png"},
+    ],
     # "primary_sidebar_end": ["primary_sidebar_end"]
 }
 # Add any paths that contain custom static files (such as style sheets) here,
