@@ -143,11 +143,10 @@ std::multiset<MappingNode>::iterator insert(MappingSearch &search,
                                             MappingNode mapping_node) {
   MappingNode const &n = mapping_node;
   // --- maintain k_best results, keeping ties in overflow ---
-  // note: max_cost is modified by `maintain_k_best_results` to shrink
+  // note: max_cost is modified to shrink
   // to the current k_best-th cost once k_best results are found
   if (n.total_cost > (search.min_cost - search.cost_tol)) {
-    if (search.results.size() < search.k_best ||
-        n.total_cost < search.max_cost + search.cost_tol) {
+    if (n.total_cost < search.max_cost + search.cost_tol) {
       search.results.emplace(
           StructureMappingCost(n.lattice_cost, n.atom_cost, n.total_cost),
           StructureMapping(n.lattice_mapping_data->prim_data->prim,
@@ -156,10 +155,17 @@ std::multiset<MappingNode>::iterator insert(MappingSearch &search,
       mapping::maintain_k_best_results(
           search.k_best, search.cost_tol, search.results, search.overflow,
           [](StructureMappingCost const &key) { return key.total_cost; });
+      if (search.results.size() == search.k_best) {
+        search.max_cost = search.results.rbegin()->first.total_cost;
+      }
     }
   }
 
-  return search.queue.insert(std::move(mapping_node));
+  if (n.total_cost < search.max_cost + search.cost_tol) {
+    return search.queue.insert(std::move(mapping_node));
+  } else {
+    return search.queue.end();
+  }
 }
 
 }  // namespace mapping_impl
@@ -367,7 +373,9 @@ MappingNode make_mapping_node(
 /// \brief Constructor
 ///
 /// \param _min_cost Keep mappings with total cost >= min_cost
-/// \param _max_cost Keep mappings with total cost <= max_cost
+/// \param _max_cost Keep mappings with total cost <= max_cost. Note that this
+///     parameter does not control the queue of MappingNode, it only controls
+///     which solutions are stored in `results`.
 /// \param _lattice_cost_weight The fraction of the total cost due to
 ///     the lattice strain cost. The remaining fraction
 ///     (1.-lattice_cost_weight) is due to the atom cost. Default=0.5.
@@ -472,11 +480,11 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
     return result;
   }
 
-  MappingNode const &node = this->front();
+  auto node_it = this->queue.begin();
   // -- Make the next level of sub-optimal assignment solutions ---
   std::multiset<murty::Node> s;
-  murty::partition(s, hungarian::solve, node.atom_mapping_data->cost_matrix,
-                   node.assignment_node, this->infinity, this->cost_tol);
+  murty::partition(s, hungarian::solve, node_it->atom_mapping_data->cost_matrix,
+                   node_it->assignment_node, this->infinity, this->cost_tol);
 
   // The sub-optimal assignment solutions are in 's',
   // and we want them to all end up in MappingNode.
@@ -487,13 +495,40 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
     // --- Make mapping node from sub-optimal assignment ---
     MappingNode mapping_node =
         mapping_impl::make_mapping_node_from_assignment_node(
-            *this, std::move(s.extract(s.begin()).value()), node.lattice_cost,
-            node.lattice_mapping_data, node.atom_mapping_data);
+            *this, std::move(s.extract(s.begin()).value()),
+            node_it->lattice_cost, node_it->lattice_mapping_data,
+            node_it->atom_mapping_data);
+
+    // check assignment:
+    for (auto const &forced_on : mapping_node.assignment_node.forced_on) {
+      auto const &sub_assignment = mapping_node.assignment_node.sub_assignment;
+      auto assignment_it = sub_assignment.find(forced_on.first);
+      if (assignment_it == sub_assignment.end()) {
+        continue;
+      }
+      if (assignment_it->second == forced_on.second) {
+        throw std::runtime_error(
+            "Error in partition: pair was supposed to be forced on, should not "
+            "be included in sub_assignment");
+      }
+    }
+    for (auto const &forced_off : mapping_node.assignment_node.forced_off) {
+      auto const &sub_assignment = mapping_node.assignment_node.sub_assignment;
+      auto assignment_it = sub_assignment.find(forced_off.first);
+      if (assignment_it == sub_assignment.end()) {
+        continue;
+      }
+      if (assignment_it->second == forced_off.second) {
+        throw std::runtime_error(
+            "Error in partition: pair was supposed to be forced off, should "
+            "not be included in sub_assignment");
+      }
+    }
 
     // --- Insert mapping node in queue and results, return queue iterator ---
     result.emplace_back(mapping_impl::insert(*this, std::move(mapping_node)));
   }
-  this->pop_front();
+  this->queue.erase(node_it);
   return result;
 }
 

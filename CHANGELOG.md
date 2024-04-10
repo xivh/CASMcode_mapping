@@ -5,6 +5,24 @@ All notable changes to `libcasm-mapping` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added `cost` methods to IsotropicAtomCost, SymmetryBreakingAtomCost, and WeightedTotalCost equivalent to the __call__ operators to improve documentation.
+
+### Changed
+
+- Changed default `atom_cost_f` for libcasm.mapping.mapsearch.MappingSearch to IsotropicAtomCost.
+- Changed MappingSearch node insertion so that nodes are only added to the queue if the total cost is less than or equal to the current max_cost instead of always.
+
+### Fixed
+
+- Documentation errors
+- Renamed QueueConstraints constructor parameter which was misnamed `min_queue_size` to the correct name `max_queue_size`
+- Fixed MappingSearch node insertion so that solutions are only added to the results if the total cost is less than or equal to the current max_cost even if the current number of results is less than k_best.
+
+
 ## [v2.0a3] - 2024-03-14
 
 ### Added

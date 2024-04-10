@@ -319,7 +319,7 @@ std::pair<double, std::map<Index, Index>> make_sub_assignment(
 
   // If cost is >= infinity...
   // no solution that doesn't include forced_off assignment
-  if (result.first > infinity - tol) {
+  if (result.first >= infinity) {
     return result;
   }
 

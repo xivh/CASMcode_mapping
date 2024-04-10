@@ -92,7 +92,6 @@ double make_isotropic_atom_cost(
   double isotropic_atom_cost = (make_geometric_atom_cost(S1, d) +
                                 make_geometric_atom_cost(L2, d_reverse)) /
                                2.;
-  std::cout << "cxx isotropic_atom_cost: " << isotropic_atom_cost << std::endl;
   return isotropic_atom_cost;
 }
 
