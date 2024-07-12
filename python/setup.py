@@ -1,6 +1,6 @@
 import os
 
-__version__ = "2.0a3"
+__version__ = "2.0a4"
 
 # Available at setup time due to pyproject.toml
 from pybind11.setup_helpers import Pybind11Extension, build_ext
@@ -36,7 +36,6 @@ extra_link_args = [
     "-lcasm_crystallography",
     "-lcasm_mapping",
 ]
-
 
 # The main interface is through Pybind11Extension.
 # * You can add cxx_std=11/14/17, and then build_ext can be removed.
@@ -81,7 +80,6 @@ ext_modules = [
         **ext_modules_params,
     ),
 ]
-
 
 setup(
     name="libcasm-mapping",

@@ -6,14 +6,14 @@ requires = [
     "cmake>=3.20",
     "ninja",
     "pybind11>=2.6",
-    "libcasm-global>=2.0.4",
-    "libcasm-xtal>=2.0a9",
+    "libcasm-global>=2.0.5",
+    "libcasm-xtal>=2.0a10",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "libcasm-mapping"
-version = "2.0a3"
+version = "2.0a4"
 authors = [
   { name="CASM developers", email="casm-developers@lists.engr.ucsb.edu" },
 ]
@@ -29,8 +29,8 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-  "libcasm-global>=2.0.4",
-  "libcasm-xtal>=2.0a9",
+  "libcasm-global>=2.0.5",
+  "libcasm-xtal>=2.0a10",
   "numpy",
 ]
 
@@ -39,13 +39,13 @@ Homepage = "https://prisms-center.github.io/CASMcode_docs/"
 Repository = "https://github.com/prisms-center/CASMcode_mapping"
 
 
-[tool.ruff]
-select = ["E", "F", "I"]
+[tool.ruff.lint]
+select = ["NPY201", "E", "F", "I"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["libcasm", "casm"]
 
 
