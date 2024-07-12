@@ -269,7 +269,9 @@ inline void MappingSearch::pop_front() { queue.erase(queue.begin()); }
 /// \brief Erase highest total cost MappingNode in the queue
 ///
 /// Invalid if !size()
-inline void MappingSearch::pop_back() { queue.erase(queue.rbegin().base()); }
+inline void MappingSearch::pop_back() {
+  queue.erase(std::next(queue.rbegin()).base());
+}
 
 /// \brief Return the size of the queue
 inline Index MappingSearch::size() const { return queue.size(); }

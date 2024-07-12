@@ -310,6 +310,12 @@ std::vector<std::vector<Eigen::Vector3d>> make_site_displacements(
     Eigen::Vector3d const &trial_translation) {
   if (atom_coordinate_cart_in_supercell.cols() >
       supercell_site_coordinate_cart.cols()) {
+    std::cout << "supercell_site_coordinate_cart.T:" << std::endl;
+    std::cout << supercell_site_coordinate_cart.transpose() << std::endl;
+    std::cout << "atom_coordinate_cart_in_supercell.T:" << std::endl;
+    std::cout << atom_coordinate_cart_in_supercell.transpose() << std::endl;
+    std::cout << "trial_translation.T:" << trial_translation.transpose()
+              << std::endl;
     throw std::runtime_error(
         "Error in make_site_displacements: "
         "atom_coordinate_cart_in_supercell.cols() > "
@@ -479,7 +485,7 @@ StructureSearchData::StructureSearchData(
     std::shared_ptr<StructureSearchData const> _prim_structure_data,
     Eigen::Matrix3l const &_transformation_matrix_to_super)
     : StructureSearchData(
-          std::move(_prim_structure_data), _transformation_matrix_to_super,
+          _prim_structure_data, _transformation_matrix_to_super,
           xtal::UnitCellCoordIndexConverter(_transformation_matrix_to_super,
                                             _prim_structure_data->N_atom)) {}
 

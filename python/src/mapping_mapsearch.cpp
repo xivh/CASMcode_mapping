@@ -3,8 +3,17 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+// nlohmann::json binding
+#define JSON_USE_IMPLICIT_CONVERSIONS 0
+#include "casm/casm_io/container/json_io.hh"
+#include "casm/casm_io/json/jsonParser.hh"
 #include "casm/crystallography/BasicStructure.hh"
+#include "casm/mapping/AtomMapping.hh"
+#include "casm/mapping/LatticeMapping.hh"
 #include "casm/mapping/MappingSearch.hh"
+#include "casm/mapping/StructureMapping.hh"
+#include "casm/mapping/io/json_io.hh"
+#include "pybind11_json/pybind11_json.hpp"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -16,6 +25,39 @@ namespace CASMpy {
 
 using namespace CASM;
 using namespace CASM::mapping;
+
+MappingSearch make_MappingSearch(
+    double _min_cost, double _max_cost, int _k_best,
+    std::optional<AtomCostFunction> _atom_cost_f,
+    std::optional<TotalCostFunction> _total_cost_f,
+    std::optional<AtomToSiteCostFunction> _atom_to_site_cost_f,
+    bool _enable_remove_mean_displacement, double _infinity, double _cost_tol) {
+  if (!_atom_cost_f) {
+    _atom_cost_f = IsotropicAtomCost();
+  }
+  if (!_total_cost_f) {
+    _total_cost_f = WeightedTotalCost(0.5);
+  }
+  if (!_atom_to_site_cost_f) {
+    _atom_to_site_cost_f = AtomToSiteCostFunction(make_atom_to_site_cost);
+  }
+  return MappingSearch(_min_cost, _max_cost, _k_best, _atom_cost_f.value(),
+                       _total_cost_f.value(), _atom_to_site_cost_f.value(),
+                       _enable_remove_mean_displacement, _infinity, _cost_tol);
+}
+
+std::shared_ptr<AtomMappingSearchData> make_AtomMappingSearchData(
+    std::shared_ptr<LatticeMappingSearchData const> lattice_mapping_data,
+    Eigen::Vector3d const &trial_translation_cart,
+    std::optional<AtomToSiteCostFunction> atom_to_site_cost_f,
+    double infinity) {
+  if (!atom_to_site_cost_f) {
+    atom_to_site_cost_f = AtomToSiteCostFunction(make_atom_to_site_cost);
+  }
+  return std::make_shared<AtomMappingSearchData>(
+      lattice_mapping_data, trial_translation_cart, atom_to_site_cost_f.value(),
+      infinity);
+}
 
 }  // namespace CASMpy
 
@@ -51,7 +93,7 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
                std::optional<std::vector<xtal::SymOp>>(),
            py::arg("enable_symmetry_breaking_atom_cost") = true,
            R"pbdoc(
-          Construct PrimSearchData
+          .. rubric:: Constructor
 
           Parameters
           ----------
@@ -137,7 +179,7 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
            py::arg("override_structure_factor_group") =
                std::optional<std::vector<xtal::SymOp>>(),
            R"pbdoc(
-          Construct StructureSearchData
+          .. rubric:: Constructor
 
           Parameters
           ----------
@@ -259,7 +301,7 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
            py::arg("prim_data"), py::arg("structure_data"),
            py::arg("lattice_mapping"),
            R"pbdoc(
-          Construct StructureSearchData
+          .. rubric:: Constructor
 
           Parameters
           ----------
@@ -359,33 +401,26 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
   m.def("make_trial_translations", &make_trial_translations,
         py::arg("lattice_mapping_data"),
         R"pbdoc(
-        Returns translations that bring atoms into registry with ideal superstructure sites.
-
-        Atom mapping assignment is made by optimizing a cost that depends on
-        site-to-atom displacements, `site_displacements`, that are calculated
-        using the minimum length displacements that satisfy:
-
-            supercell_site_coordinate_cart[i] + site_displacements[i][j] =
-                F^{-1}*atom_coordinate_cart[j] + trial_translation_cart
-
-        under periodic boundary conditions. The trial_translation may not be
-        equal to the final :class:`~libcasm.mapping.info.AtomMapping` translation
-        which is chosen after solving the atom assignment problem so that
-        the mean displacement of the atom mapping is equal to zero.
+        Returns translations that bring atoms into registry with ideal \
+        superstructure sites.
 
         This function returns a minimal set of trial translations by finding
         an atom type with the fewest valid atom type -> allowed site
         translations and returning the corresponding translations. For each
-        trial translation at least one site_displacement is of length zero.
+        trial translation at least one site displacement is of length zero.
+
+        See :class:`~libcasm.mapping.mapsearch.AtomMappingSearchData` for a
+        description of how the trial translation is used when finding an
+        atom mapping and associated displacements.
 
         Parameters
         ----------
-        lattice_mapping_data : ~libcasm.mapping.mapsearch.LatticeMappingSearchData
+        lattice_mapping_data : libcasm.mapping.mapsearch.LatticeMappingSearchData
             Data describing a lattice mapping between a prim and a structure
 
         Returns
         -------
-        trial_translations_cart : List[]
+        trial_translations_cart : List[numpy.ndarray[numpy.float64[3, 1]]]
             An array holding a minimal set of trial translations, in
             Cartesian coordinates, which bring atoms of the structure
             being mapped into alignment with sites in the ideal
@@ -435,28 +470,43 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
       Atom mapping-related data used for mapping searches
 
       Atom mapping assignment is made by optimizing a cost that depends on
-      site-to-atom displacements, `site_displacements`, that are calculated
-      using the minimum length displacements that satisfy:
+      site-to-atom displacements, :math:`\vec{d}^{*}(i)`, that are calculated
+      using the minimum length displacements under periodic boundary
+      conditions that satisfy a proposed atom assignment.
 
-          supercell_site_coordinate_cart[i] + site_displacements[i][j] =
-              F^{-1}*atom_coordinate_cart[j] + trial_translation_cart
+      Each atom assignment proposal is made in the context of a lattice
+      mapping, with deformation gradient, :math:`F`, and a trial translation,
+      :math:`\vec{t}^{*}`, according to
 
-      under periodic boundary conditions. The trial_translation may not be
-      equal to the final :class:`~libcasm.mapping.info.AtomMapping` translation
-      which is chosen after solving the atom assignment problem so that
-      the mean displacement of the atom mapping is equal to zero.
+      .. math::
+
+          \left(\vec{r_1}(i) + \vec{d}^{*}(i) \right) = F^{-1} \vec{r_2}(p_i) + \vec{t}^{*},
+
+      using the same definitions as :class:`~libcasm.mapping.info.AtomMapping`.
+
+      Given a proposed assignment, the mean displacement,
+      :math:`\langle\vec{d}^{*}\rangle` may optionally be removed and the
+      assignment cost re-calculated.
+
+      If the mean displacement is removed, then the
+      :class:`~libcasm.mapping.info.AtomMapping` displacements are
+      :math:`\vec{d}(i) = \vec{d}^{*}(i) - \langle\vec{d^{*}}\rangle`,
+      and the :class:`~libcasm.mapping.info.AtomMapping` translation,
+      :math:`\vec{t}`, is related to the trial translation according to
+      :math:`\vec{t} = F (\vec{t}^{*} - \langle\vec{d^{*}}\rangle)`.
+
+      If the mean displacement is not removed, then
+      :math:`\vec{d}(i) = \vec{d}^{*}(i)` and :math:`\vec{t} = F \vec{t}^{*}`.
 
       This object stores a `trial_translation_cart`, `site_displacements`,
       and resulting `cost_matrix` used to find optimal atom-to-site
       assignment solutions in the context of a particular lattice mapping.
       )pbdoc")
-      .def(py::init<std::shared_ptr<LatticeMappingSearchData const>,
-                    Eigen::Vector3d const &, AtomToSiteCostFunction, double>(),
+      .def(py::init<>(&make_AtomMappingSearchData),
            py::arg("lattice_mapping_data"), py::arg("trial_translation_cart"),
-           py::arg("atom_to_site_cost_f") =
-               AtomToSiteCostFunction(make_atom_to_site_cost),
+           py::arg("atom_to_site_cost_f") = std::nullopt,
            py::arg("infinity") = 1e20, R"pbdoc(
-          Construct AtomMappingSearchData
+          .. rubric:: Constructor
 
           Parameters
           ----------
@@ -469,11 +519,11 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
               ideal superstructure setting (i.e.
               atom_coordinate_cart_in_supercell) to bring the atoms and sites
               into alignment.
-          atom_to_site_cost_f : function, optional
+          atom_to_site_cost_f : Optional[Callable[[numpy.ndarray[numpy.float64[3, 1]], str, List[str], float], float]] = None
               A function used to calculate the cost of mapping an atom to a
-              particular site. Follows the signature of
-              :func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`, which is
-              the default method.
+              particular site. Expected to match the same signature as
+              :func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`, which
+              is the default method.
           infinity : float, default=1e20
               The value to use for the cost of unallowed mappings.
           )pbdoc")
@@ -521,22 +571,95 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
   py::class_<IsotropicAtomCost>(m, "IsotropicAtomCost", R"pbdoc(
       A functor for calculating the isotropic atom mapping cost
 
+      .. rubric:: Special methods
+
+      :class:`~libcasm.mapping.mapsearch.IsotropicAtomCost` has a call
+      operator which is equivalent to the
+      :func:`~libcasm.mapping.mapsearch.IsotropicAtomCost.cost` method.
+
       )pbdoc")
-      .def(py::init())
+      .def(py::init(), R"pbdoc(
+
+        .. rubric:: Constructor
+
+        Default constructor only.
+        )pbdoc")
       .def("__call__", &IsotropicAtomCost::operator(),
            py::arg("lattice_mapping_data"), py::arg("atom_mapping_data"),
+           py::arg("atom_mapping"), "Calculate the isotropic atom mapping cost")
+      .def("cost", &IsotropicAtomCost::operator(),
+           py::arg("lattice_mapping_data"), py::arg("atom_mapping_data"),
            py::arg("atom_mapping"),
-           "Calculate the isotropic atom mapping cost");
+           R"pbdoc(
+           Calculate the isotropic atom mapping cost
+
+           Notes
+           -----
+
+           - An call operator exists which is equivalent to this method.
+
+           Parameters
+           ----------
+           lattice_mapping_data: libcasm.mapping.mapsearch.LatticeMappingSearchData
+               The lattice mapping search data.
+           atom_mapping_data: libcasm.mapping.mapsearch.LatticeMappingSearchData
+               The atom mapping search data.
+           atom_mapping: libcasm.mapping.info.AtomMapping
+               The atom mapping.
+
+           Returns
+           -------
+           atom_cost: float
+               The isotropic atom mapping cost.
+
+           )pbdoc");
 
   py::class_<SymmetryBreakingAtomCost>(m, "SymmetryBreakingAtomCost", R"pbdoc(
      A functor for calculating the symmetry-breaking atom mapping cost
 
+     .. rubric:: Special methods
+
+     :class:`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost` has a call
+     operator which is equivalent to the
+     :func:`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost.cost` method.
+
      )pbdoc")
-      .def(py::init())
+      .def(py::init(), R"pbdoc(
+
+        .. rubric:: Constructor
+
+        Default constructor only.
+        )pbdoc")
       .def("__call__", &SymmetryBreakingAtomCost::operator(),
            py::arg("lattice_mapping_data"), py::arg("atom_mapping_data"),
            py::arg("atom_mapping"),
-           "Calculate the symmetry-breaking atom mapping cost");
+           "Calculate the symmetry-breaking atom mapping cost")
+      .def("cost", &SymmetryBreakingAtomCost::operator(),
+           py::arg("lattice_mapping_data"), py::arg("atom_mapping_data"),
+           py::arg("atom_mapping"),
+           R"pbdoc(
+           Calculate the symmetry-breaking atom mapping cost
+
+           Notes
+           -----
+
+           - An call operator exists which is equivalent to this method.
+
+           Parameters
+           ----------
+           lattice_mapping_data: libcasm.mapping.mapsearch.LatticeMappingSearchData
+               The lattice mapping search data.
+           atom_mapping_data: libcasm.mapping.mapsearch.LatticeMappingSearchData
+               The atom mapping search data.
+           atom_mapping: libcasm.mapping.info.AtomMapping
+               The atom mapping.
+
+           Returns
+           -------
+           atom_cost: float
+               The symmetry-breaking atom mapping cost.
+
+           )pbdoc");
 
   py::class_<WeightedTotalCost>(m, "WeightedTotalCost", R"pbdoc(
      A functor for calculating the total mapping cost as a weighted average of
@@ -548,9 +671,16 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
 
          total_cost = lattice_cost_weight*lattice_cost + (1.0 - lattice_cost_weight)*atom_cost
 
+     .. rubric:: Special methods
+
+     :class:`~libcasm.mapping.mapsearch.WeightedTotalCost` has a call
+     operator which is equivalent to the
+     :func:`~libcasm.mapping.mapsearch.WeightedTotalCost.cost` method.
+
      )pbdoc")
       .def(py::init<double>(), py::arg("lattice_cost_weight"), R"pbdoc(
-        Construct a WeightedTotalCost functor
+
+        .. rubric:: Constructor
 
         Parameters
         ----------
@@ -560,16 +690,118 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
       .def("__call__", &WeightedTotalCost::operator(), py::arg("lattice_cost"),
            py::arg("lattice_mapping_data"), py::arg("atom_cost"),
            py::arg("atom_mapping_data"), py::arg("atom_mapping"),
-           "Calculate the total mapping cost as a weighted average of the "
-           "lattice and atom mapping costs");
+           R"pbdoc(
+           Calculate the total mapping cost as a weighted average of the \
+           lattice and atom mapping costs
+           )pbdoc")
+      .def("cost", &WeightedTotalCost::operator(), py::arg("lattice_cost"),
+           py::arg("lattice_mapping_data"), py::arg("atom_cost"),
+           py::arg("atom_mapping_data"), py::arg("atom_mapping"),
+           R"pbdoc(
+           Calculate the total mapping cost as a weighted average of the \
+           lattice and atom mapping costs
+
+           Notes
+           -----
+
+           - An call operator exists which is equivalent to this method.
+
+           Parameters
+           ----------
+           lattice_cost: float
+               The lattice mapping cost.
+           lattice_mapping_data: libcasm.mapping.mapsearch.LatticeMappingSearchData
+               The lattice mapping search data.
+           atom_cost: float
+               The atom mapping cost.
+           atom_mapping_data: libcasm.mapping.mapsearch.LatticeMappingSearchData
+               The atom mapping search data.
+           atom_mapping: libcasm.mapping.info.AtomMapping
+               The atom mapping.
+
+           Returns
+           -------
+           total_cost: float
+               The total mapping cost is calculated as
+
+               .. code-block:: Python
+
+                   total_cost = lattice_cost_weight*lattice_cost + (1.0 - lattice_cost_weight)*atom_cost
+
+
+           )pbdoc");
+
+  py::class_<MappingSearch> pyMappingSearch(m, "MappingSearch", R"pbdoc(
+      Used to perform structure mapping searches
+
+      The MappingSearch class holds parameters, data,
+      and methods used to search for low cost structure mappings.
+
+      It holds a queue of :class:`~libcasm.mapping.mapsearch.MappingNode`,
+      which encode a particular structure mapping, and the data
+      necessary to start from that structure mapping and find
+      sub-optimal atom mappings as part of a search using the Murty
+      Algorithm to find sub-optimal atom-to-site assignments.
+
+      It also holds the best results found so far which satisfy
+      some acceptance criteria:
+
+      - min_cost: Keep mappings with total cost >= min_cost
+      - max_cost: Keep mappings with total cost <= max_cost
+      - k_best: Keep the k_best mappings with lowest total cost
+        that also satisfy the min/max cost criteria. Approximate
+        ties with the current k_best result are also kept.
+
+      Overview of methods:
+
+      - To begin,
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.make_and_insert_mapping_node`
+        is called one or more times to generate initial structure mapping
+        solutions given a particular lattice mapping and choice of trial
+        translation to bring atoms into alignment with sites that they might be
+        mapped to. Each call adds one node (think one structure mapping) to the
+        MappingSearch queue and, potentially, to the MappingSearch results (if
+        the cost range and k-best acceptance criterais are satisfied).
+      - Then, :func:`~libcasm.mapping.mapsearch.MappingSearch.partition` is
+        called repeatedly to search for sub-optimal cost mapping solutions.
+        Each partition creates 0 or more nodes (structure mappings with
+        sub-optimal atom assignment solutions) which are inserted into the
+        MappingSearch queue and, potentially, to the MappingSearch results (if
+        the cost range and k-best acceptance criterais are satisfied).
+      - The methods :func:`~libcasm.mapping.mapsearch.MappingSearch.front`,
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.back`,
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_front`,
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_back`, and
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.size` allow managing
+        the MapppingSearch queue.
+      - The method :func:`~libcasm.mapping.mapsearch.MappingSearch.results`
+        returns the current mapping results (including approximate ties with
+        the current k_best result).
+
+
+      Notes
+      -----
+
+      - The :class:`~libcasm.mapping.mapsearch.MappingSearch` constructor
+        parameters `min_cost` and `max_cost` set bounds on mappings stored
+        in the search :func:`~libcasm.mapping.mapsearch.MappingSearch.results`,
+        but not on the :class:`~libcasm.mapping.mapsearch.MappingNode` (used to
+        find next-best costing assignments) stored in the
+        :class:`~libcasm.mapping.mapsearch.MappingSearch` queue.
+      - The :class:`~libcasm.mapping.mapsearch.QueueConstraints` class is an
+        example of an approach to manage the MappingSearch queue during a
+        search.
+
+      )pbdoc");
 
   py::class_<MappingNode>(m, "MappingNode", R"pbdoc(
       A node in the search for optimal structure mappings
 
       This encodes a particular prim, lattice mapping, and atom mapping,
       and includes the information needed to continue searching for
-      suboptimal assignments. It is constructed in the context of a
-      :class:`~libcasm.mapping.mapsearch.MappingSearch`, and not on its own.
+      suboptimal assignments. In normal usage, it is constructed by the
+      :class:`~libcasm.mapping.mapsearch.MappingSearch.make_and_insert_mapping_node`
+      method and not on its own.
       )pbdoc")
       .def(py::init(&make_mapping_node), py::arg("search"),
            py::arg("lattice_cost"), py::arg("lattice_mapping_data"),
@@ -577,7 +809,7 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
            py::arg("forced_on") = std::map<Index, Index>(),
            py::arg("forced_off") = std::vector<std::pair<Index, Index>>(),
            R"pbdoc(
-          Construct a MappingNode
+          .. rubric:: Constructor
 
           Given any assignment constraints (`forced_on` and `forced_off`), and
 
@@ -625,89 +857,94 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
           "forced on.")
       .def(
           "forced_off",
-          [](MappingNode const &m) { return m.assignment_node.forced_on; },
+          [](MappingNode const &m) { return m.assignment_node.forced_off; },
           "Returns a list of tuples of assignments `(site_index, atom_index)` "
-          "that are forced off.");
+          "that are forced off.")
+      .def(
+          "total_cost", [](MappingNode const &m) { return m.total_cost; },
+          R"pbdoc(
+          Returns the total mapping cost, as calculated by the `total_cost_f` \
+          parameter of a :class:`~libcasm.mapping.mapsearch.MappingSearch`.
+          )pbdoc")
+      .def(
+          "to_dict",
+          [](MappingNode const &m) -> nlohmann::json {
+            jsonParser json;
+            auto pair_to_json = [&](std::pair<Index, Index> const &x,
+                                    jsonParser &json) {
+              jsonParser tmp;
+              tmp.put_array();
+              tmp.push_back(x.first);
+              tmp.push_back(x.second);
+              json.push_back(tmp);
+            };
+            json["forced_on"].put_array();
+            for (auto const &x : m.assignment_node.forced_on) {
+              pair_to_json(x, json["forced_on"]);
+            }
+            json["forced_off"].put_array();
+            for (auto const &x : m.assignment_node.forced_off) {
+              pair_to_json(x, json["forced_off"]);
+            }
+            json["atom_mapping"] = m.atom_mapping;
+            json["atom_cost"] = m.atom_cost;
+            json["lattice_mapping"] = m.lattice_mapping_data->lattice_mapping;
+            json["lattice_cost"] = m.lattice_cost;
+            json["total_cost"] = m.total_cost;
+            return static_cast<nlohmann::json>(json);
+          },
+          "Represent a MappingNode as a Python dict.");
 
-  py::class_<MappingSearch>(m, "MappingSearch", R"pbdoc(
-      Used to perform structure mapping searches
-
-      The MappingSearch class holds parameters, data,
-      and methods used to search for low cost structure mappings.
-
-      It holds a queue of :class:`~libcasm.mapping.mapsearch.MappingNode`,
-      which encode a particular structure mapping, and the data
-      necessary to start from that structure mapping and find
-      sub-optimal atom mappings as part of a search using the Murty
-      Algorithm to find sub-optimal atom-to-site assignments.
-
-      It also holds the best results found so far which satisfy
-      some acceptance criteria:
-
-      - min_cost: Keep mappings with total cost >= min_cost
-      - max_cost: Keep mappings with total cost <= max_cost
-      - k_best: Keep the k_best mappings with lowest total cost
-        that also satisfy the min/max cost criteria. Approximate
-        ties with the current k_best result are also kept.
-
-      Overview of methods:
-
-      - To begin, :func:`~libcasm.mapping.mapsearch.MappingSearch.make_and_insert_mapping_node` is called one or more times to generate initial structure mapping solutions given a particular lattice mapping and choice of trial translation to bring atoms into alignment with sites that they might be mapped to. Each call adds one node (think one structure mapping) to the MappingSearch queue and, potentially, to the MappingSearch results (if the cost range and k-best acceptance criterais are satisfied).
-      - Then, :func:`~libcasm.mapping.mapsearch.MappingSearch.partition` is called repeatedly to search for sub-optimal cost mapping solutions. Each partition creates 0 or more nodes (structure mappings with sub-optimal atom assignment solutions) which are inserted into the MappingSearch queue and, potentially, to the MappingSearch results (if the cost range and k-best acceptance criterais are satisfied).
-      - The methods :func:`~libcasm.mapping.mapsearch.MappingSearch.front`, :func:`~libcasm.mapping.mapsearch.MappingSearch.back`, :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_front`, :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_back`, and :func:`~libcasm.mapping.mapsearch.MappingSearch.size` allow managing
-        the MapppingSearch queue.
-      - The method :func:`~libcasm.mapping.mapsearch.MappingSearch.results` returns the current mapping results (including approximate ties with the current k_best result).
-
-
-      Notes
-      -----
-      The :class:`~libcasm.mapping.mapsearch.QueueConstraints` class is example of
-      approach to manage the MappingSearch queue during a search.
-      )pbdoc")
-      .def(py::init<double, double, int, AtomCostFunction, TotalCostFunction,
-                    AtomToSiteCostFunction, bool, double, double>(),
-           py::arg("min_cost") = 0.0, py::arg("max_cost") = 1e20,
-           py::arg("k_best") = 1,
-           py::arg("atom_cost_f") = SymmetryBreakingAtomCost(),
-           py::arg("total_cost_f") = WeightedTotalCost(0.5),
-           py::arg("atom_to_site_cost_f") =
-               AtomToSiteCostFunction(make_atom_to_site_cost),
+  pyMappingSearch
+      .def(py::init<>(&make_MappingSearch), py::arg("min_cost") = 0.0,
+           py::arg("max_cost") = 1e20, py::arg("k_best") = 1,
+           py::arg("atom_cost_f") = std::nullopt,
+           py::arg("total_cost_f") = std::nullopt,
+           py::arg("atom_to_site_cost_f") = std::nullopt,
            py::arg("enable_remove_mean_displacement") = true,
            py::arg("infinity") = 1e20, py::arg("cost_tol") = 1e-5,
            R"pbdoc(
-          Construct a MappingSearch
+          .. rubric:: Constructor
 
           Parameters
           ----------
           min_cost : float, default=0.0
-              Keep mappings with total cost >= min_cost.
+              Keep mappings with total cost >= min_cost. Nodes that have
+              a lower cost will be added to the search queue to enable searching
+              for less-optimal solutions but not included in the final results.
           max_cost : float, default=1e20
-              Keep mappings with total cost <= max_cost.
+              Keep mappings with total cost <= max_cost. Nodes that have
+              a higher cost will not be included in the final results, nor will
+              they be added to the search queue. During the course of a search,
+              once `k_best` results have been found, the `max_cost` will be
+              shrunk to match the `k_best`-ranked solution.
           k_best : int, default=1
               Keep the k_best mappings with lowest total cost that also
               satisfy the min/max cost criteria. Approximate ties with the
-              current k_best result are also kept.
-          atom_cost_f : function, default=:class:`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost()`
-              Function used to calculate the atom mapping cost. Expected to
-              match the same signature as :class:`~libcasm.mapping.mapsearch.IsotropicAtomCost`.
-              Possible atom mapping cost functions:
+              current `k_best`-ranked result are also kept.
+          atom_cost_f : Optional[Callable[[LatticeMappingSearchData, AtomMappingSearchData, libcasm.mapping.info.AtomMapping], float]] = None
+
+              The function used to calculate the atom mapping cost. Expected
+              to match the same signature as
+              :class:`~libcasm.mapping.mapsearch.IsotropicAtomCost.cost`.
+              Possible atom mapping cost functions include:
 
               - :class:`~libcasm.mapping.mapsearch.IsotropicAtomCost`
               - :class:`~libcasm.mapping.mapsearch.SymmetryBreakingAtomCost`
 
-          total_cost_f : function, default=:class:`~libcasm.mapping.mapsearch.WeightedTotalCost()`
-              Function used to calculate the total mapping cost. Expected to
-              match the same signature as :class:`~libcasm.mapping.mapsearch.WeightedTotalCost`.
-              Possible total mapping cost functions:
+              If None, the default value is ``IsotropicAtomCost()``.
 
-              - :class:`~libcasm.mapping.mapsearch.WeightedTotalCost()`
+          total_cost_f : Callable[[float, LatticeMappingSearchData, float, AtomMappingSearchData, AtomMapping], float]] = None
+              The function used to calculate the total mapping cost. Expected
+              to match the same signature as
+              :class:`~libcasm.mapping.mapsearch.WeightedTotalCost.cost`.
+              If None, the default value is ``WeightedTotalCost(0.5)``.
 
-          atom_to_site_cost_f : function, default=:func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`
-              Function used to calculate the elements of the assignment problem cost
-              matrix. Expected to match the same signature as :func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`.
-              Possible atom-to-site mapping cost functions:
-
-              - :class:`~libcasm.mapping.mapsearch.WeightedTotalCost()`
+          atom_to_site_cost_f : Optional[Callable[[numpy.ndarray[numpy.float64[3, 1]], str, List[str], float], float]] = None
+              A function used to calculate the cost of mapping an atom to a
+              particular site. Expected to match the same signature as
+              :func:`~libcasm.mapping.mapsearch.make_atom_to_site_cost`, which
+              is the default method.
 
           enable_remove_mean_displacement : bool, default=True
               If true, the translation and displacements of an atom
@@ -716,9 +953,26 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
           infinity : float, default=1e20
               The value to use in the assignment problem cost matrix for
               unallowed atom-to-site mappings.
-          cost_tol : float, default=1e20
+          cost_tol : float, default=1e-5
               Tolerance for checking if mapping costs are approximately equal.
           )pbdoc")
+      .def_readonly("min_cost", &MappingSearch::min_cost,
+                    "float: Keep mappings with total cost >= min_cost.")
+      .def_readonly("max_cost", &MappingSearch::max_cost, R"pbdoc(
+           float: Keep mappings with total cost <= max_cost.
+
+            Notes
+            -----
+            - This parameter does not control the queue of MappingNode,
+              it only controls which solutions are stored in `results`.
+            - The `max_cost` is modified to shrink to the current
+              `k_best`-ranked cost once `k_best` results are found
+
+           )pbdoc")
+      .def_readonly("k_best", &MappingSearch::k_best, R"pbdoc(
+            int: Maximum number of results to keep (approximate ties are also \
+            kept).
+            )pbdoc")
       .def("front", &MappingSearch::front,
            "Returns a reference to the lowest cost MappingNode in the queue.")
       .def("back", &MappingSearch::back,
@@ -728,21 +982,31 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
       .def("pop_back", &MappingSearch::pop_back,
            "Erase the highest cost MappingNode in the queue.")
       .def("size", &MappingSearch::size, "Returns the current queue size.")
-      .def("make_and_insert_mapping_node",
-           &MappingSearch::make_and_insert_mapping_node,
-           py::arg("lattice_cost"), py::arg("lattice_mapping_data"),
-           py::arg("trial_translation_cart"), py::arg("forced_on"),
-           py::arg("forced_off"),
-           R"pbdoc(
+      .def(
+          "make_and_insert_mapping_node",
+          [](MappingSearch &self, double lattice_cost,
+             std::shared_ptr<LatticeMappingSearchData const>
+                 lattice_mapping_data,
+             Eigen::Vector3d const &trial_translation_cart,
+             std::map<Index, Index> forced_on = {},
+             std::vector<std::pair<Index, Index>> forced_off = {}) {
+            auto it = self.make_and_insert_mapping_node(
+                lattice_cost, lattice_mapping_data, trial_translation_cart,
+                forced_on, forced_off);
+          },
+          py::arg("lattice_cost"), py::arg("lattice_mapping_data"),
+          py::arg("trial_translation_cart"), py::arg("forced_on"),
+          py::arg("forced_off"),
+          R"pbdoc(
           Make and insert a mapping solution
 
           The (constrained) assignment problem is solved in context of
           a particular lattice mapping and trial translation, and
           the resulting AtomMapping, atom mapping cost, and total cost
           are stored in a MappingNode. The MappingNode is inserted into
-          the MappingSearch queue. It is also inserted into the
-          MappingSearch results, if it satisifies the cost range and
-          k-best criteria.
+          the MappingSearch queue if it satisfies the `max_cost` criteria.
+          It is also inserted into the MappingSearch results, if it satisifies
+          the cost range and k-best criteria.
 
           Parameters
           ----------
@@ -764,16 +1028,19 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
               A list of tuples of assignments `(site_index, atom_index)` that
               are forced off.
           )pbdoc")
-      .def("partition", &MappingSearch::partition,
-           R"pbdoc(
+      .def(
+          "partition", [](MappingSearch &self) { auto it = self.partition(); },
+          R"pbdoc(
           Make and insert sub-optimal mapping solutions
 
           The Murty algorithm is used to generate sub-optimal assignments
-          from the current lowest cost solution in the queue (available as :func:`~libcasm.mapping.mapsearch.MappingSearch.front`). The
-          resulting MappingNode are inserted into the MappingSearch queue.
-          They are also inserted into the MappingSearch results, if they
-          satisify the cost range and k-best criteria. Finally,
-          :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_front` is called.
+          from the current lowest cost solution in the queue (available as
+          :func:`~libcasm.mapping.mapsearch.MappingSearch.front`). The
+          resulting MappingNode are inserted into the MappingSearch queue if
+          they satisify the `max_cost` criteria. They are also inserted into
+          the MappingSearch results, if they satisify the cost range and k-best
+          criteria. Finally, the node that was partitioned is removed from the
+          queue.
           )pbdoc")
       .def("results", &combined_results,
            R"pbdoc(
@@ -805,33 +1072,52 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
       optional constraints which can reduce the overall search
       time:
 
-      - min_queue_cost: Allow searching for sub-optimal mappings
-        if the total cost >= min_queue_cost
-      - max_queue_cost: Allow searching for sub-optimal mappings
-        if the total cost <= max_queue_cost
-      - max_queue_size: Reduce the queue size to max_queue_size
-        by repeatedly calling `pop_back`.
+      - `min_queue_cost`: Skip searching for sub-optimal atom assignments if
+        the total cost is less than `min_queue_cost` by repeatedly calling
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_front`.
+      - `max_queue_cost`: Skip searching for sub-optimal atom assignments if
+        the total cost is greater than `max_queue_cost` by repeatedly calling
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_back`.
+      - `max_queue_size`: Reduce the queue size to `max_queue_size`, no matter
+        what the total cost of queued mappings is, by repeatedly calling
+        :func:`~libcasm.mapping.mapsearch.MappingSearch.pop_back`.
+
+      Notes
+      -----
+
+      - The :class:`~libcasm.mapping.mapsearch.MappingSearch` constructor
+        parameters `min_cost` and `max_cost` set bounds on mappings stored
+        in the search :func:`~libcasm.mapping.mapsearch.MappingSearch.results`,
+        but not on the :class:`~libcasm.mapping.mapsearch.MappingNode` (used to
+        find next-best costing assignments) stored in the
+        :class:`~libcasm.mapping.mapsearch.MappingSearch` queue.
+
       )pbdoc")
       .def(py::init<std::optional<double>, std::optional<double>,
                     std::optional<Index>>(),
            py::arg("min_queue_cost") = std::optional<double>(),
            py::arg("max_queue_cost") = std::optional<double>(),
-           py::arg("min_queue_size") = std::optional<Index>(),
+           py::arg("max_queue_size") = std::optional<Index>(),
            R"pbdoc(
-          Construct QueueConstraints
+          .. rubric:: Constructor
 
           Parameters
           ----------
           min_queue_cost : Optional[float], default=None
-              Minimum cost mappings to keep in the search queue.
+              Minimum cost mappings to keep in the search queue and use as the
+              starting point for finding next-best cost atom mapping
+              assignments.
           max_queue_cost : Optional[float], default=None
-              Maximum cost mappings to keep in the search queue.
+              Maximum cost mappings to keep in the search queue and use as the
+              starting point for finding next-best cost atom mapping
+              assignments.
           max_queue_size : Optional[int], default=None
               Maximum search queue size to allow.
+
           )pbdoc")
-      .def("__call__", &QueueConstraints::operator(), py::arg("search"),
+      .def("enforce", &QueueConstraints::operator(), py::arg("search"),
            R"pbdoc(
-          "Apply constraints to MappingSearch queue
+          Enforce constraints on a MappingSearch queue
 
           Parameters
           ----------
