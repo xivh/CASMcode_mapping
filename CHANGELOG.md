@@ -5,6 +5,19 @@ All notable changes to `libcasm-mapping` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [v2.0a5] - 2024-08-18
+
+### Added
+
+- Added `isotropic_strain_cost` and `symmetry_breaking_strain_cost` to `libcasm.mapping.info`.
+- Added `map_lattices_without_reorientation` to `libcasm.mapping.methods`.
+
+### Fixed
+
+- Fixed the displacement cost descriptions in `libcasm.mapping.methods.map_atoms`.
+
+
 ## [v2.0a4] - 2024-07-12
 
 ### Added

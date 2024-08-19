@@ -11,7 +11,7 @@ from ._mapping_info import (
     StructureMappingCost,
     StructureMappingResults,
     has_same_prim,
+    isotropic_strain_cost,
     pretty_json,
-    lattice_isotropic_strain_cost,
-    lattice_symmetry_breaking_strain_cost,
+    symmetry_breaking_strain_cost,
 )

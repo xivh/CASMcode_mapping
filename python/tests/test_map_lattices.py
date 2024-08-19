@@ -92,3 +92,39 @@ def test_map_lattices_3():
         k_best=1,
     )
     assert len(lattice_mappings) == 1
+
+    ##
+    lattice_mapping = mapmethods.map_lattices_without_reorientation(
+        lattice1,
+        lattice2,
+    )
+    F = lattice_mapping.deformation_gradient()
+    L1 = lattice1.column_vector_matrix()
+    L2 = lattice2.column_vector_matrix()
+    N = lattice_mapping.reorientation()
+    _I = np.eye(3)
+    assert np.allclose(F @ L1, L2)
+    assert np.allclose(N, _I)
+
+    ##
+    T = np.array(
+        [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 2],
+        ],
+        dtype=int,
+    )
+    lattice2 = xtal.Lattice(F @ L1 @ T)
+    lattice_mapping = mapmethods.map_lattices_without_reorientation(
+        lattice1,
+        lattice2,
+        transformation_matrix_to_super=T,
+    )
+    F = lattice_mapping.deformation_gradient()
+    L1 = lattice1.column_vector_matrix()
+    L2 = lattice2.column_vector_matrix()
+    N = lattice_mapping.reorientation()
+    _I = np.eye(3)
+    assert np.allclose(F @ L1 @ T, L2)
+    assert np.allclose(N, _I)

@@ -270,43 +270,40 @@ PYBIND11_MODULE(_mapping_methods, m) {
 
       Atom mapping costs are calculated and ranked according to one of:
 
-      - "isotropic_disp_cost": an atom mapping cost, calculated to be
-        volume-normalized and invariant to which structure is the
-        parent/child. Calculated as:
+      - "isotropic_disp_cost": A displacement cost that is a volume-normalized and does
+        not depend on which structure is "parent" and which is "child". It is calculated
+        as
 
         .. math::
 
-            \mathrm{cost} &= \frac{1}{2}*\left( \frac{1}{3}*\mathrm{tr}\left(\tilde{B}_{c \to p}^{2} \right) + \frac{1}{3}*\mathrm{tr}\left(\tilde{B}_{p \to c}^{2} \right) \right)
+            \mathrm{cost} &= \frac{1}{2}(c^{g}(L_1 T, D) + c^g(L_2, D^{rev}) \\
+            c^{g}(S, D) &= \left( \frac{3v(S)}{4\pi} \right)^{-2/3} \frac{\sum^N_i \vec{d}(i)^2}{N}
 
-            \tilde{F} &= \frac{1}{\det{F}^{1/3}} F = \tilde{Q} \tilde{U}
+        where:
 
-            \tilde{B} &= \tilde{U} - I,
+        - :math:`\vec{d}(i)`: The site-to-atom displacement, as defined in
+          :class:`libcasm.mapping.info.AtomMapping`,
+        - :math:`D`: The shape=(3, N) matrix with column `i` being the
+          displacement :math:`\vec{d}(i)` associated with the atom at the
+          i-th site in the parent superstructure.
+        - :math:`D^{rev}`: The shape=(3, n_sites) matrix corresponding to the
+          displacements associated with the reverse mapping,
+          :math:`D^{rev} = -U * D`, :math:`U` being the right stretch tensor
+          of the parent-to-child lattice mapping, as defined in
+          :class:`libcasm.mapping.info.LatticeMapping`,
+        - v(S): The volume per site for the superlattice :math:`S`
+        - :math:`c^{g}(S,D)` is the "geometric atom cost" for the displacements
+          in superlattice :math:`S`, and
 
-        where :math:`F` is the deformation gradient tensor, which can be defined
-        in either the parent-to-child (:math:`p \to c`) sense as
-        :math:`F_{p \to c} L_1 T N = L_2`, or in the child-to-parent sense
-        (:math:`c \to p`) according to :math:`F_{c \to p} = F_{p \to c}^{-1}`,
-        :math:`B` is the Biot strain tensor, and the use of (:math:`\tilde{X}`)
-        indicates that the quantity has been normalized to be volume
-        invariant.
-
-      - "symmetry_breaking_strain_cost": a strain cost, including only
-        the components of the strain that break the symmetry of the parent
-        point group. Calculated as:
-
-        .. math::
-
-            \mathrm{cost} &= \frac{1}{2}*\left( \frac{1}{3}*\mathrm{tr}\left( B_{sym-break, p \to c}^2 \right) + \frac{1}{3}*\mathrm{tr}\left( B_{sym-break, c \to p}^2 \right) \right)
-
-            B_{sym-break} &= B - B_{sym}
-
-            B_{sym} &= \frac{1}{N_{G_1}} * \sum_i ( G_1(i) * B * G_1^{\mathsf{T}}(i) )
-
-        where :math:`B_{sym-break}`, is the symmetry-breaking Biot strain,
-        :math:`G_1(i)` are parent point group operations, and
-        :math:`N_{G_1}` is the total number of operations. Similar relations hold
-        for calculating :math:`B_{sym-break, p \to c}` and
-        :math:`B_{sym-break, c \to p}` from :math:`B`.
+      - "symmetry_breaking_disp_cost": A displacement cost, based on the
+        symmetry-breaking displacements that are left after removing
+        displacement modes which preserve the symmetry of the parent point
+        group. The symmetry-breaking displacement cost is
+        calculated using the same equation as the isotropic displacement cost,
+        with the substitutions :math:`D \to D^{sym-break}` and
+        :math:`D^{rev} \to D^{sym-break, rev}`, the matrices holding the
+        symmetry-breaking displacements for the parent-to-child and reverse
+        atom mappings.
 
       For more details, see :cite:t:`THOMAS2021a`.
 

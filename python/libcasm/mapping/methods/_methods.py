@@ -1,8 +1,9 @@
 import typing
 
+import numpy as np
+
 import libcasm.mapping.info as mapinfo
 import libcasm.xtal as xtal
-import numpy as np
 
 
 def map_lattices_without_reorientation(
@@ -12,48 +13,59 @@ def map_lattices_without_reorientation(
 ) -> mapinfo.LatticeMapping:
     """Map lattices without reorienting the child.
 
-    This function may be used to find the lattice mapping from
-    an ideal structure to a deformed structure during geometric
-    relaxation via DFT. The lattice mapping has the form
+    This function may be used to find the lattice mapping from an ideal lattice or
+    superlattice to a deformed lattice. The lattice mapping without reorientation has
+    the form
 
     .. math::
 
-        FL_1T = L_2
+        F L_1 T = L_2,
 
-    where :math:`F` is the deformation tensor, :math:`L_1` is
-    the ideal parent lattice, :math:`L_2` is the deformed child
-    lattice, and :math:`T` is an optional transformation matrix
-    from the parent to the child which may be provided if :math:`L2`
-    is a superlattice of :math:`L1`.
+    where:
+
+    - :math:`L_1` is a shape=(3,3) matrix with columns containing the
+      reference "parent" lattice vectors
+    - :math:`L_2` is a shape=(3,3) matrix with columns containing the
+      "child" lattice vectors
+    - :math:`F` is the parent-to-child deformation gradient tensor,
+      a shape=(3,3) matrix.
+    - :math:`T` is an integer transformation matrix that generates a
+      superlattice of :math:`L_1`.
+
+    This is equivalent to a lattice mapping with reorientation matrix, :math:`N`, equal
+    to the identity matrix, :math:`I` (see
+    :class:`~libcasm.mapping.info.LatticeMapping`).
+
 
     Parameters
     ----------
-    lattice1: xtal.Lattice
-        The parent crystal lattice.
-    lattice2: xtal.Lattice
-        The child crystal lattice.
+    lattice1: libcasm.xtal.Lattice
+        The parent lattice, :math:`L_1`.
+    lattice2: libcasm.xtal.Lattice
+        The child lattice, :math:`L_2`.
     transformation_matrix_to_super: Optional[np.ndarray] = None
-        An integer shape=(3,3) transformation matrix that generates a superlattice of `lattice1`.
-        The transformation matrix that generates a superlattice of `lattice1`.
-        If None, :math:`T` is set to the identity matrix.
+        A shape=(3,3) integer transformation matrix, :math:`T` that generates a
+        superlattice of `lattice1`. If None, :math:`T` is set to the identity matrix.
 
     Returns
     -------
-    lattice_mapping: mapinfo.LatticeMapping
-        The lattice mapping from the parent to the child.
+    lattice_mapping: libcasm.mapping.info.LatticeMapping
+        The lattice mapping from the parent to the child, with :math:`N = I`.
     """
-    if transformation_matrix_to_super is None:
-        transformation_matrix_to_super = np.eye(3, dtype=int)
+
+    T = transformation_matrix_to_super
+    if T is None:
+        T = np.eye(3, dtype=int)
 
     # calculate deformation gradient
-    l1 = lattice1.column_vector_matrix()
-    l2 = lattice2.column_vector_matrix()
-    deformation_gradient = (
-        l2 @ np.linalg.inv(transformation_matrix_to_super) @ np.linalg.inv(l1)
-    )
-    lattice_mapping = mapinfo.LatticeMapping(
-        deformation_gradient=deformation_gradient,
-        transformation_matrix_to_super=transformation_matrix_to_super,
+    L1 = lattice1.column_vector_matrix()
+    L2 = lattice2.column_vector_matrix()
+
+    # F @ (L1 @ T) = L_2
+    F = L2 @ np.linalg.inv(L1 @ T)
+
+    return mapinfo.LatticeMapping(
+        deformation_gradient=F,
+        transformation_matrix_to_super=T,
         reorientation=np.eye(3, dtype=float),
     )
-    return lattice_mapping
