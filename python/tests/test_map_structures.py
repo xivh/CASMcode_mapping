@@ -420,3 +420,60 @@ def test_bcc_hcp_mapping():
         check_mapping(prim, hcp_structure, smap)
         assert math.isclose(smap.lattice_cost(), 0.007297079413597657)
         assert math.isclose(smap.atom_cost(), 0.06274848406141671)
+
+
+def test_make_mapped_structure_0(shared_datadir):
+    import json
+
+    # set up prim
+    with open(shared_datadir / "AB_test" / "prim.json", "r") as f:
+        xtal_prim = xtal.Prim.from_dict(json.load(f))
+    prim_factor_group = xtal.make_factor_group(xtal_prim)
+
+    # get the relaxed structure (includes properties such as energy)
+    relaxed_properties_json = shared_datadir / "AB_test" / "properties.calc.json"
+    with open(relaxed_properties_json, "r") as f:
+        props = json.load(f)
+        relaxed_structure = xtal.Structure.from_dict(props)
+
+    # get lattice mapping (should have 0 cost) and 2 atom mappings
+    # then, generate the 2 equivalent structures from the 2 atom mappings
+    transformation_matrix_to_super = xtal.make_transformation_matrix_to_super(
+        superlattice=relaxed_structure.lattice(), unit_lattice=xtal_prim.lattice()
+    )
+    lattice_mapping = mapmethods.map_lattices_without_reorientation(
+        xtal_prim.lattice(),
+        relaxed_structure.lattice(),
+        transformation_matrix_to_super=transformation_matrix_to_super,
+    )
+    atom_mapping = mapmethods.map_atoms(
+        prim=xtal_prim,
+        structure=relaxed_structure,
+        lattice_mapping=lattice_mapping,
+        prim_factor_group=prim_factor_group,
+    )
+    ## 0 lattice cost
+    assert np.isclose(
+        mapinfo.isotropic_strain_cost(lattice_mapping.deformation_gradient()),
+        0,
+        atol=1e-10,
+    )
+    ## 2 atom mappings
+    assert len(atom_mapping) == 2
+    ## check that atom mappings have the same cost, and then make the mapped structures
+    _atom_cost = atom_mapping[0].atom_cost()
+    for i in atom_mapping:
+        assert np.isclose(_atom_cost, i.atom_cost(), atol=1e-10)
+        structure_mapping = mapinfo.StructureMapping(
+            prim=xtal_prim, lattice_mapping=lattice_mapping, atom_mapping=i
+        )
+
+    print(structure_mapping.to_dict())
+
+    # attempt to make the mapped structure
+    mapped_structure = mapmethods.make_mapped_structure(
+        structure_mapping=structure_mapping,
+        unmapped_structure=relaxed_structure,
+    )
+
+    assert isinstance(mapped_structure, xtal.Structure)
