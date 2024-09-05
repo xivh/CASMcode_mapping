@@ -53,7 +53,8 @@ StructureMapping interpolated_mapping(StructureMapping const &structure_mapping,
 /// Notes:
 /// - This method is only implemented for atomic structures, not
 ///   molecular structures
-/// - Implicit vacancies are added as "Va"
+/// - Implicit vacancies are added as "Va", with value 0.0 any atom
+//    properties present in the unmapped_structure (i.e. force)
 /// - Throws if unmapped_structure already has a strain or disp
 ///   property
 ///
@@ -169,7 +170,7 @@ xtal::SimpleStructure make_mapped_structure(
       AnisoValTraits traits(key);
       Eigen::MatrixXd M = traits.symop_to_matrix(
           get_matrix(Q_inv), get_translation(Q_inv), get_time_reversal(Q_inv));
-      transformed_atom_properties.emplace(key, M * q2);
+      transformed_atom_properties.emplace(key, M * q2_with_Va);
     } catch (std::exception &e) {
       std::stringstream msg;
       msg << "CASM does not know how to transform the local property '" << key

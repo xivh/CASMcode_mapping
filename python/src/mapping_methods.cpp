@@ -406,7 +406,8 @@ PYBIND11_MODULE(_mapping_methods, m) {
 
       - This method is only implemented for atomic structures, not
         molecular structures
-      - Implicit vacancies are added as "Va"
+      - Implicit vacancies are added as "Va", with value 0.0 any atom
+        properties present in the unmapped_structure (i.e. force)
       - Raises if unmapped_structure already has a strain or disp
         property
 
