@@ -49,8 +49,8 @@ MappingSearch make_MappingSearch(
     }
     // convert to AtomToSiteCostFunction
     f = [_atom_to_site_cost_f](
-            xtal::Lattice const &lattice, Eigen::Vector3d const &displacement,
-            std::string const &atom_type,
+            LatticeMappingSearchData const &lattice_mapping_data,
+            Eigen::Vector3d const &displacement, std::string const &atom_type,
             std::vector<std::string> const &allowed_atom_types,
             double infinity) {
       return _atom_to_site_cost_f.value()(displacement, atom_type,
@@ -78,8 +78,8 @@ std::shared_ptr<AtomMappingSearchData> make_AtomMappingSearchData(
     }
     // convert to AtomToSiteCostFunction
     f = [_atom_to_site_cost_f](
-            xtal::Lattice const &lattice, Eigen::Vector3d const &displacement,
-            std::string const &atom_type,
+            LatticeMappingSearchData const &lattice_mapping_data,
+            Eigen::Vector3d const &displacement, std::string const &atom_type,
             std::vector<std::string> const &allowed_atom_types,
             double infinity) {
       return _atom_to_site_cost_f.value()(displacement, atom_type,
@@ -183,7 +183,47 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
           "Returns a size=N_mode vector with shape=(3,N_prim_site) matrices, "
           "giving the symmetry invariant displacement modes. Columns of the "
           "matrices are the displacements associated with each site for a "
-          "given mode.");
+          "given mode.")
+      .def("make_symmetry_preserving_displacement",
+           &PrimSearchData::make_symmetry_preserving_displacement,
+           py::arg("displacement"), py::arg("unitcellcoord_index_converter"),
+           R"pbdoc(
+           Returns the symmetry-preserving component of displacement
+
+           Parameters
+           ----------
+           displacement : array_like, shape=(3, N_supercell_site)
+               Shape=(3, N_supercell_site) matrix with the site-to-atom
+               displacements, as defined in an AtomMapping.
+           unitcellcoord_index_converter : libcasm.xtal.UnitCellCoordIndexConverter
+               Gives the coordinates for sites associated with the columns
+               of the supercell displacement matrix.
+
+           Returns
+           -------
+           symmetry_preserving_displacement : array_like, shape=(3, N_supercell_site)
+               The symmetry-preserving component of the input displacement.
+          )pbdoc")
+      .def("make_symmetry_breaking_displacement",
+           &PrimSearchData::make_symmetry_preserving_displacement,
+           py::arg("displacement"), py::arg("unitcellcoord_index_converter"),
+           R"pbdoc(
+           Returns the symmetry-breaking component of displacement
+
+           Parameters
+           ----------
+           displacement : array_like, shape=(3, N_supercell_site)
+               Shape=(3, N_supercell_site) matrix with the site-to-atom
+               displacements, as defined in an AtomMapping.
+           unitcellcoord_index_converter : libcasm.xtal.UnitCellCoordIndexConverter
+               Gives the coordinates for sites associated with the columns
+               of the supercell displacement matrix.
+
+           Returns
+           -------
+           symmetry_breaking_displacement : array_like, shape=(3, N_supercell_site)
+               The symmetry-breaking component of the input displacement.
+          )pbdoc");
 
   py::class_<StructureSearchData, std::shared_ptr<StructureSearchData>>(
       m, "StructureSearchData", R"pbdoc(
@@ -503,8 +543,9 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
         )pbdoc");
 
   m.def("make_atom_to_site_cost_future", &make_atom_to_site_cost_future,
-        py::arg("lattice"), py::arg("displacement"), py::arg("atom_type"),
-        py::arg("allowed_atom_types"), py::arg("infinity"),
+        py::arg("lattice_mapping_data"), py::arg("displacement"),
+        py::arg("atom_type"), py::arg("allowed_atom_types"),
+        py::arg("infinity"),
         R"pbdoc(
         Returns the cost for mapping a particular atom to a particular site
 
@@ -521,8 +562,19 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
         - of a displacement on the lattice voronoi cell boundary is
           infinity (the displacement is ambiguous as to which periodic
           image it should map to)
-        - otherwise, the mapping cost is equal to displacement length
-          squared
+        - otherwise, the mapping cost is equal to:
+
+          .. math::
+
+              \frac{1}{2}\left( (U d)^{\mathsf{T}} (U d) + d^{\mathsf{T}} (d) \right)
+
+          where :math:`d` is the displacement vector defined in the
+          parent-to-child mapping convention (see
+          :class:`~libcasm.mapping.info.AtomMapping`), :math:`U` is the right
+          stretch tensor of the lattice mapping (see
+          :class:`~libcasm.mapping.info.LatticeMapping`), and :math:`-U d` is
+          the displacement vector defined in the child-to-parent mapping
+          convention.
 
         Notes
         -----
@@ -531,9 +583,8 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
 
         Parameters
         ----------
-        lattice : libcasm.xtal.Lattice
-            The lattice in which the displacements are calculated under
-            periodic boundary conditions.
+        lattice_mapping_data : libcasm.mapping.mapsearch.LatticeMappingSearchData
+            Lattice mapping specific data.
         displacement : array_like, shape=(3,)
             The minimum length displacement, accounting for periodic
             boundaries, from the site to the atom.
@@ -976,6 +1027,53 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
           parameter of a :class:`~libcasm.mapping.mapsearch.MappingSearch`.
           )pbdoc")
       .def(
+          "assignment",
+          [](MappingNode const &m) {
+            return make_assignment(m.assignment_node);
+          },
+          R"pbdoc(
+          Returns the current atom-to-site assignment.
+
+          Returns
+          -------
+          assignment : list[int]
+              The assignment vector is defined as `j = assignment[i]`, where
+              `i` is the site index (row in the cost_matrix) and `j` is the
+              atom index (column in the cost_matrix).
+          )pbdoc")
+      .def(
+          "assignment_cost",
+          [](MappingNode const &m) { return m.assignment_node.cost; },
+          R"pbdoc(
+          Returns the cost of the current atom-to-site assignments.
+
+          This is the value as calculated from the
+          :func:`~libcasm.mapping.mapsearch.AtomMappingSearchData.cost_matrix`
+          and the optimal assignment given the values of `forced_on` and
+          `forced_off`.
+          )pbdoc")
+      .def("symmetry_preserving_displacement",
+           &MappingNode::symmetry_preserving_displacement,
+           R"pbdoc(
+           Returns the symmetry-preserving component of displacement
+
+           Returns
+           -------
+           symmetry_preserving_displacement : array_like, shape=(3, N_supercell_site)
+               The symmetry-preserving component of the atom mapping
+               displacement.
+          )pbdoc")
+      .def("symmetry_breaking_displacement",
+           &MappingNode::symmetry_breaking_displacement,
+           R"pbdoc(
+           Returns the symmetry-breaking component of displacement
+
+           Returns
+           -------
+           symmetry_breaking_displacement : array_like, shape=(3, N_supercell_site)
+               The symmetry-breaking component of the atom mapping displacement.
+          )pbdoc")
+      .def(
           "to_dict",
           [](MappingNode const &m) -> nlohmann::json {
             jsonParser json;
@@ -1158,7 +1256,7 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
               are forced off.
           )pbdoc")
       .def(
-          "partition", [](MappingSearch &self) { auto it = self.partition(); },
+          "partition", [](MappingSearch &self) { auto res = self.partition(); },
           R"pbdoc(
           Make and insert sub-optimal mapping solutions
 
@@ -1170,6 +1268,21 @@ PYBIND11_MODULE(_mapping_mapsearch, m) {
           the MappingSearch results, if they satisify the cost range and k-best
           criteria. Finally, the node that was partitioned is removed from the
           queue.
+          )pbdoc")
+      .def(
+          "last_partition",
+          [](MappingSearch const &self) { return self.last_partition; },
+          R"pbdoc(
+          Access the sub-nodes generated by the last call to `partition` and
+          whether they were inserted into the queue.
+
+          Returns
+          -------
+          subnodes: list[~libcasm.mapping.mapsearch.MappingNode]
+              A list of the sub-nodes that were generated.
+          inserted: list[bool]
+              A list of booleans indicating whether the corresponding sub-node
+              was inserted into the queue.
           )pbdoc")
       .def("results", &combined_results,
            R"pbdoc(

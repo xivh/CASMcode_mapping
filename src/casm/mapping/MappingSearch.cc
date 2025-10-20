@@ -162,6 +162,7 @@ MappingNode make_mapping_node_from_assignment_node(
 std::multiset<MappingNode>::iterator insert(MappingSearch &search,
                                             MappingNode mapping_node) {
   MappingNode const &n = mapping_node;
+
   // --- maintain k_best results, keeping ties in overflow ---
   // note: max_cost is modified to shrink
   // to the current k_best-th cost once k_best results are found
@@ -284,6 +285,36 @@ MappingNode::MappingNode(
       assignment_node(std::move(_assignment_node)),
       atom_mapping(std::move(_atom_mapping)),
       total_cost(_total_cost) {}
+
+Eigen::MatrixXd MappingNode::symmetry_preserving_displacement() const {
+  LatticeMappingSearchData const &_lattice_data = *(this->lattice_mapping_data);
+  PrimSearchData const &_prim_data = *(_lattice_data.prim_data);
+  if (!_prim_data.prim_sym_invariant_displacement_modes.has_value()) {
+    throw std::runtime_error(
+        "Error in PrimSearchData::symmetry_preserving_displacements: "
+        "prim symmetry-invariant displacement modes are not available. Use "
+        "enable_symmetry_breaking_atom_cost when constructing PrimSearchData.");
+  }
+  return make_symmetry_preserving_displacement(
+      this->atom_mapping.displacement,
+      _lattice_data.unitcellcoord_index_converter,
+      *_prim_data.prim_sym_invariant_displacement_modes);
+}
+
+Eigen::MatrixXd MappingNode::symmetry_breaking_displacement() const {
+  LatticeMappingSearchData const &_lattice_data = *(this->lattice_mapping_data);
+  PrimSearchData const &_prim_data = *(_lattice_data.prim_data);
+  if (!_prim_data.prim_sym_invariant_displacement_modes.has_value()) {
+    throw std::runtime_error(
+        "Error in PrimSearchData::symmetry_breaking_displacements: "
+        "prim symmetry-invariant displacement modes are not available. Use "
+        "enable_symmetry_breaking_atom_cost when constructing PrimSearchData.");
+  }
+  return make_symmetry_breaking_displacement(
+      this->atom_mapping.displacement,
+      _lattice_data.unitcellcoord_index_converter,
+      *_prim_data.prim_sym_invariant_displacement_modes);
+}
 
 /// \brief Make mapping node
 ///
@@ -494,6 +525,11 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
   // results are iterators to newly generated sub-nodes
   std::vector<std::multiset<MappingNode>::iterator> result;
 
+  auto &subnodes = last_partition.first;
+  auto &inserted = last_partition.second;
+  subnodes.clear();
+  inserted.clear();
+
   // if nothing in queue, nothing can be done
   if (!this->size()) {
     return result;
@@ -517,6 +553,7 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
             *this, std::move(s.extract(s.begin()).value()),
             node_it->lattice_cost, node_it->lattice_mapping_data,
             node_it->atom_mapping_data);
+    subnodes.push_back(mapping_node);
 
     // check assignment:
     for (auto const &forced_on : mapping_node.assignment_node.forced_on) {
@@ -545,7 +582,13 @@ std::vector<std::multiset<MappingNode>::iterator> MappingSearch::partition() {
     }
 
     // --- Insert mapping node in queue and results, return queue iterator ---
-    result.emplace_back(mapping_impl::insert(*this, std::move(mapping_node)));
+    auto it = mapping_impl::insert(*this, std::move(mapping_node));
+    if (it != this->queue.end()) {
+      inserted.push_back(true);
+    } else {
+      inserted.push_back(false);
+    }
+    result.push_back(it);
   }
   this->queue.erase(node_it);
   return result;
