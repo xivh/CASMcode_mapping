@@ -9,4 +9,5 @@ from ._mapping_methods import (
 )
 from ._methods import (
     map_lattices_without_reorientation,
+    direct_structure_mapping,
 )
