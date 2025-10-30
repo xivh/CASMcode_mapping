@@ -2,7 +2,7 @@ from skbuild import setup
 
 setup(
     name="libcasm-mapping",
-    version="2.3.0",
+    version="3.0.0",
     packages=[
         "libcasm",
         "libcasm.mapping",
