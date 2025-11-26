@@ -8,6 +8,6 @@ from ._mapping_methods import (
     map_structures,
 )
 from ._methods import (
-    map_lattices_without_reorientation,
     direct_structure_mapping,
+    map_lattices_without_reorientation,
 )

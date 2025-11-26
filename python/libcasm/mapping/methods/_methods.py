@@ -107,25 +107,24 @@ def direct_structure_mapping(
     F = lmap.deformation_gradient()
 
     # The mapped structure is constructed as:
-    # U @ (r1 + d) = r2 + 0
-    # r1 + d = U_inv @ r2
-    # d = U_inv @ r2 - r1
+    # F @ (r1 + d) = r2 + 0
+    # r1 + d = F_inv @ r2
+    # d = F_inv @ r2 - r1
     #
     # If removing mean displacement:
-    # d' = U_inv @ r2 - r1 - d_mean
+    # d' = F_inv @ r2 - r1 - d_mean
     # =>
-    # U @ (r1 + d') = r2 + translation
-    # U @ r1 + r2 - U @ r1 - U @ d_mean = r2 + translation
-    # translation = -U @ d_mean
+    # F @ (r1 + d') = r2 + translation
+    # F @ r1 + r2 - F @ r1 - F @ d_mean = r2 + translation
+    # translation = -F @ d_mean
     #
 
     # Atom mapping:
-    Q, U = xtal.StrainConverter.F_to_QU(F)
     r1 = structure1.atom_coordinate_cart()
     r2 = structure2.atom_coordinate_cart()
-    U_inv = np.linalg.inv(U)
-    r2_ref = U_inv @ r2
-    d_direct = U_inv @ r2 - r1
+    F_inv = np.linalg.inv(F)
+    r2_ref = F_inv @ r2
+    d_direct = F_inv @ r2 - r1
     d_pbc = np.zeros_like(d_direct)
     for i in range(r1.shape[1]):
         d_pbc[:, i] = xtal.min_periodic_displacement(
@@ -136,7 +135,7 @@ def direct_structure_mapping(
     if remove_mean_displacement:
         mean_d = np.mean(d_pbc, axis=1)  # shape (3,)
         d_pbc -= mean_d[:, np.newaxis]  # shape (3,1) for broadcasting
-        translation = -U @ mean_d
+        translation = -F @ mean_d
     else:
         translation = np.zeros(3)
     amap = mapinfo.AtomMapping(
