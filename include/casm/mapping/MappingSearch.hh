@@ -141,6 +141,14 @@ struct MappingNode {
   bool operator<(MappingNode const &rhs) const {
     return this->total_cost < rhs.total_cost;
   }
+
+  /// \brief Calculate the symmetry preserving component of the
+  ///     atom displacements
+  Eigen::MatrixXd symmetry_preserving_displacement() const;
+
+  /// \brief Calculate the symmetry breaking component of the
+  ///     atom displacements
+  Eigen::MatrixXd symmetry_breaking_displacement() const;
 };
 
 /// \brief Make mapping node
@@ -212,6 +220,9 @@ struct MappingSearch {
 
   /// \brief Tolerance used for comparing costs
   double cost_tol;
+
+  /// \brief The last partition's nodes and whether they were added to the queue
+  std::pair<std::vector<MappingNode>, std::vector<bool>> last_partition;
 
   /// \brief Return lowest total cost MappingNode in the queue
   MappingNode const &front() const;
