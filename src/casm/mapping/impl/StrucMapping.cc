@@ -167,7 +167,6 @@ static void partition_node(MappingNode const &_node,
   Index n = _node.atomic_node.assignment.size();
   MappingNode t1(_node), t2(_node);
 
-  _node.is_partitioned = true;
   t1.is_partitioned = false;
   t2.is_partitioned = false;
 
@@ -839,7 +838,7 @@ bool identical(AssignmentNode const &A, AssignmentNode const &B) {
 //*******************************************************************************************
 
 MappingNode MappingNode::invalid() {
-  static MappingNode result(
+  MappingNode result(
       LatticeNode(xtal::Lattice::cubic(), xtal::Lattice::cubic(),
                   xtal::Lattice::cubic(), xtal::Lattice::cubic(), 1),
       0.5);
@@ -1751,17 +1750,13 @@ std::vector<xtal::Lattice> StrucMapper::_lattices_of_vol(Index prim_vol) const {
   // If you specified that you wanted certain lattices, return those, otherwise
   // do the usual enumeration
   if (this->lattices_constrained()) {
-    // This may very well return an empty vector, saving painful time
-    // enumerating things
-    return m_allowed_superlat_map[prim_vol];
+    auto it = m_allowed_superlat_map.find(prim_vol);
+    if (it != m_allowed_superlat_map.end()) return it->second;
+    return {};
   }
 
-  // If we already have candidate lattices for the given volume, return those
-  auto it = m_superlat_map.find(prim_vol);
-  if (it != m_superlat_map.end()) return it->second;
-
-  // We don't have any lattices for the provided volume, enumerate them all!!!
-  std::vector<xtal::Lattice> &lat_vec = m_superlat_map[prim_vol];
+  // Enumerate lattices for the provided volume
+  std::vector<xtal::Lattice> lat_vec;
 
   auto pg = calculator().point_group();
   xtal::SuperlatticeEnumerator enumerator(
@@ -1833,6 +1828,8 @@ Index StrucMapper::k_best_maps_better_than(
   int nfound = 0;
   // Track pairs of supercell volumes that are chemically incompatible
   std::set<std::pair<Index, Index>> vol_mismatch;
+  // Track partitioned nodes explicitly for thread safety
+  std::set<MappingNode const *> partitioned_nodes;
 
   if (k == 0) {
     // If k==0, then we only keep values less than min_cost
@@ -1891,10 +1888,12 @@ Index StrucMapper::k_best_maps_better_than(
           // condition) Skip partitioning if node is already partitioned, or if
           // caller has asked not to
           if (nfound < k || current->cost <= min_cost) {
-            if (!(no_partition || current->is_partitioned)) {
+            if (!(no_partition || current->is_partitioned ||
+                  partitioned_nodes.count(&*current))) {
               Local::partition_node(*current, calculator(), unmapped_child,
                                     symmetrize_atomic_cost(),
                                     std::inserter(queue, current));
+              partitioned_nodes.insert(&*current);
             }
 
             // Keep current node if it is in the solution set if we have been

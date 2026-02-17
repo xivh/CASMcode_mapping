@@ -354,7 +354,7 @@ struct MappingNode {  // Note: See full description in StrucMapping.cc
   /// - Specifies that all atoms are assigned to sites where that atom type is
   /// allowed
   /// - Default before checking is false
-  mutable bool is_valid;
+  bool is_valid;
 
   /// \brief True if node has been partitioned
   ///
@@ -362,7 +362,7 @@ struct MappingNode {  // Note: See full description in StrucMapping.cc
   /// - Partitioning into sub-nodes to find sub-optimal assignment solutions is
   /// performed as part of the generalized k-best assignment problem
   /// - Default: false
-  mutable bool is_partitioned;
+  bool is_partitioned;
 
   /// \brief Total solution cost, including lattice and atomic costs
   ///
@@ -649,7 +649,7 @@ class StrucMapper {
 
   ///\brief clear the list of allowed parent superlattices;
   /// all superlattices will be generated automatically, as needed (default)
-  void clear_allowed_lattices() const { m_allowed_superlat_map.clear(); }
+  void clear_allowed_lattices() { m_allowed_superlat_map.clear(); }
 
   ///\brief returns true if the search of parent superlattices is constrained to
   /// a pre-specified list
@@ -663,14 +663,10 @@ class StrucMapper {
   void set_filter(LatticeFilterFunction _filter_f) {
     m_filtered = true;
     m_filter_f = _filter_f;
-    m_superlat_map.clear();
   }
 
   ///\brief specify not to use filtered lattice for mapping
-  void unset_filter() {
-    m_filtered = false;
-    m_superlat_map.clear();
-  }
+  void unset_filter() { m_filtered = false; }
 
   // --- The `map_X_struc[_impose_Y]` methods are what run the algorithm ---
 
@@ -788,9 +784,8 @@ class StrucMapper {
   bool m_filtered;
   LatticeFilterFunction m_filter_f;
 
-  /// Maps the supercell volume to a vector of Lattices with that volume
-  mutable LatMapType m_superlat_map;
-  mutable LatMapType m_allowed_superlat_map;
+  /// Maps the supercell volume to a vector of allowed Lattices with that volume
+  LatMapType m_allowed_superlat_map;
 
   std::vector<xtal::Lattice> _lattices_of_vol(Index prim_vol) const;
 };

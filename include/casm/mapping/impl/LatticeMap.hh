@@ -54,9 +54,6 @@ class StrainCostCalculator {
  private:
   Eigen::MatrixXd m_gram_mat;
   bool m_sym_cost;
-
-  mutable Eigen::Matrix3d m_cache;
-  mutable Eigen::Matrix3d m_cache_inv;
 };
 
 /// \brief LatticeMap finds optimal mappings between lattices
@@ -73,11 +70,11 @@ class LatticeMap {
              bool _symmetrize_strain_cost = false, double _cost_tol = TOL);
 
   /// Iterate until all possible solutions have been considered
-  LatticeMap const &best_strain_mapping() const;
+  LatticeMap &best_strain_mapping();
 
   /// \brief Iterate until the next solution \f$(N, F^{N})\f$ with lattice
   /// mapping score less than `max_cost` is found.
-  LatticeMap const &next_mapping_better_than(double max_cost) const;
+  LatticeMap &next_mapping_better_than(double max_cost);
 
   /// Returns true if there is a current valid solution
   operator bool() const { return m_has_current_solution; }
@@ -158,11 +155,11 @@ class LatticeMap {
   bool m_symmetrize_strain_cost;
   double m_cost_tol;
 
-  mutable bool m_has_current_solution;
-  mutable double m_cost;
-  mutable Index m_currmat;
-  mutable DMatType m_deformation_gradient, m_N, m_dcache;
-  mutable IMatType m_icache;
+  bool m_has_current_solution;
+  double m_cost;
+  Index m_currmat;
+  DMatType m_deformation_gradient, m_N, m_dcache;
+  IMatType m_icache;
 
   void _reset(double _better_than = 1e20);
 
@@ -179,11 +176,11 @@ class LatticeMap {
   Index n_mat() const { return m_mvec_ptr->size(); }
 
   /// Returns true if current N matrix is the canonical equivalent
-  bool _check_canonical() const;
+  bool _check_canonical();
 
   /// \brief Iterate until the next solution \f$(N, F^{N})\f$ with lattice
   /// mapping score less than `max_cost` is found.
-  LatticeMap const &_next_mapping_better_than(double max_cost) const;
+  LatticeMap &_next_mapping_better_than(double max_cost);
 };
 
 /// \brief Returns the volume-normalized strain cost, calculated to be
