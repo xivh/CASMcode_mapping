@@ -579,7 +579,7 @@ PrimSearchData::PrimSearchData(
       prim_site_coordinate_cart(mapping_impl::make_site_coordinate_cart(*prim)),
       prim_allowed_atom_types(xtal::allowed_molecule_names(*prim)),
       prim_factor_group(override_prim_factor_group == std::nullopt
-                            ? xtal::make_factor_group(*prim, prim_lattice.tol())
+                            ? xtal::make_factor_group(*prim)
                             : std::move(*override_prim_factor_group)),
       prim_crystal_point_group(xtal::make_crystal_point_group(
           prim_factor_group, prim_lattice.tol())),
@@ -710,48 +710,6 @@ std::vector<Eigen::Vector3d> make_trial_translations(
 /// \brief Make the atom mapping cost for a particular atom
 ///     to a particular structure site
 ///
-/// Note:
-/// - Deprecated in v2.3.0. Will be replaced by `atom_to_site_cost_future`,
-///   in >=v3.0.0.
-///
-/// Mapping cost:
-/// - of a vacancy (xtal::is_vacancy is used to check
-/// the atom_type) to any site that allows vacancies is set to 0.0.
-/// - to a site that does not allow the atom type is infinity
-/// - otherwise, equal to displacement length squared
-///
-/// \param displacement The minimum length displacement, accounting
-///     for periodic boundaries, from the site to the atom
-/// \param atom_type The atom type.
-/// \param allowed_atom_types The atom types allowed on the site
-/// \param infinity The value to use for unallowed mappings
-double make_atom_to_site_cost(
-    Eigen::Vector3d const &displacement, std::string const &atom_type,
-    std::vector<std::string> const &allowed_atom_types, double infinity) {
-  // if vacancy is allowed on site, return 0.0; else return infinity
-  if (xtal::is_vacancy(atom_type)) {
-    for (auto const &allowed_type : allowed_atom_types) {
-      if (xtal::is_vacancy(allowed_type)) {
-        return 0.0;
-      }
-    }
-    return infinity;
-  }
-
-  // if non-vacancy is not allowed on site, return infinity
-  auto begin = allowed_atom_types.begin();
-  auto end = allowed_atom_types.end();
-  if (std::find(begin, end, atom_type) == end) {
-    return infinity;
-  }
-
-  // otherwise, return distance squared
-  return displacement.dot(displacement);
-}
-
-/// \brief Make the atom mapping cost for a particular atom
-///     to a particular structure site
-///
 /// Mapping cost:
 /// - of a vacancy (xtal::is_vacancy is used to check
 /// the atom_type) to any site that allows vacancies is set to 0.0.
@@ -766,7 +724,7 @@ double make_atom_to_site_cost(
 /// \param atom_type The atom type.
 /// \param allowed_atom_types The atom types allowed on the site
 /// \param infinity The value to use for unallowed mappings
-double make_atom_to_site_cost_future(
+double make_atom_to_site_cost(
     LatticeMappingSearchData const &lattice_mapping_search_data,
     Eigen::Vector3d const &displacement, std::string const &atom_type,
     std::vector<std::string> const &allowed_atom_types, double infinity) {

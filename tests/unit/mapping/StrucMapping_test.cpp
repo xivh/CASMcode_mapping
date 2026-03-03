@@ -342,7 +342,7 @@ TEST(SymInvariantMappingTest, Hcp) {
   xtal::SimpleStructure simple_struc = xtal::make_simple_structure(basic_struc);
 
   // Get the factor group of the structure
-  auto parent_fg = xtal::make_factor_group(basic_struc, 0.0001);
+  auto parent_fg = xtal::make_factor_group(basic_struc);
   EXPECT_EQ(parent_fg.size(), 24)
       << "The obtained factor group for a hcp crystal structure had "
       << parent_fg.size() << " operations. 24 operations are expected";
@@ -447,7 +447,7 @@ TEST(SymInvariantMappingTest, shuffle) {
   std::vector<double> map_cost;
 
   // Get the factor group of the structure
-  auto parent_fg = xtal::make_factor_group(basic_struc, 0.0001);
+  auto parent_fg = xtal::make_factor_group(basic_struc);
   auto parent_permute_group =
       xtal::make_permutation_representation(basic_struc, parent_fg);
   EXPECT_EQ(parent_fg.size(), 8)

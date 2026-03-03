@@ -158,23 +158,6 @@ struct LatticeNode {  // Note: See full description in StrucMapping.cc
   LatticeNode(xtal::Superlattice parent, xtal::Superlattice child,
               Eigen::Matrix3d stretch, Eigen::Matrix3d isometry, double cost,
               std::string cost_method);
-
-  // TODO: We should prefer putting the logic of how LatticeNode members are
-  // calculated in standalone methods rather than constructors...
-
-  /// \brief Construct a LatticeNode by calculating the deformation tensor that
-  /// maps a particular child superlattice to a particular parent superlattice
-  /// [deprecated]
-  LatticeNode(xtal::Lattice const &parent_prim,
-              xtal::Lattice const &parent_scel,
-              xtal::Lattice const &unmapped_child_prim,
-              xtal::Lattice const &unmapped_child_scel, Index child_N_atom,
-              double _cost = big_inf());
-
-  /// \brief Construct a LatticeNode using the mapping calculated by LatticeMap
-  /// [deprecated]
-  LatticeNode(LatticeMap const &lattice_map, xtal::Lattice const &parent_prim,
-              xtal::Lattice const &unmapped_child_prim);
 };
 
 /// \brief Construct a LatticeNode by calculating the deformation tensor that

@@ -19,9 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking change**: Custom `atom_to_site_cost_f` and `atom_to_site_cost_future_f` functions passed to `libcasm.mapping.mapsearch.MappingSearch` or `libcasm.mapping.mapsearch.AtomMappingSearchData` constructors must now accept `libcasm.mapping.mapsearch.LatticeMappingSearchData` as the first parameter instead of `libcasm.xtal.Lattice`. This provides access to the full lattice mapping context including the deformation gradient. The built-in cost functions `libcasm.mapping.mapsearch.make_atom_to_site_cost` and `libcasm.mapping.mapsearch.make_atom_to_site_cost_future` have been updated accordingly.
-- Changed `libcasm.mapping.mapsearch.make_atom_to_site_cost_future` so that the displacement cost is calculated using the mean of the parent-to-child and child-to-parent costs, rather than just the parent-to-child cost. This makes the cost function symmetric with respect to swapping the parent and child structures.
+- **Breaking change**: Removed `atom_to_site_cost_future_f` arguments. Custom `atom_to_site_cost_f` functions passed to `libcasm.mapping.mapsearch.MappingSearch` or `libcasm.mapping.mapsearch.AtomMappingSearchData` constructors must now accept `libcasm.mapping.mapsearch.LatticeMappingSearchData` as the first parameter instead of `libcasm.xtal.Lattice`. This provides access to the full lattice mapping context including the deformation gradient. The built-in cost function `libcasm.mapping.mapsearch.make_atom_to_site_cost` has been updated accordingly.
+- Renamed `libcasm.mapping.mapsearch.make_atom_to_site_cost_future` to replace `libcasm.mapping.mapsearch.make_atom_to_site_cost`
+- Changed `libcasm.mapping.mapsearch.make_atom_to_site_cost` so that the displacement cost is calculated using the mean of the parent-to-child and child-to-parent costs, rather than just the parent-to-child cost. This makes the cost function symmetric with respect to swapping the parent and child structures.
 - Thread safety updates in casm/mapping/impl/ to StrainCostCalculator, LatticeMap, MappingNode, and StrucMapper.
+
+### Removed
+
+- Removed deprecatd mapping_impl::LatticeNode constructors. Use standalone methods to calculate LatticeNode members instead.
 
 
 ## [2.4.1] - 2026-02-25
