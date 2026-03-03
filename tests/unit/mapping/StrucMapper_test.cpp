@@ -313,9 +313,10 @@ TEST_F(StrucMapperTest, MapDeformedStrucImposeLatticeNode0) {
   xtal::Lattice unmapped_child_prim_lattice{child.lat_column_mat};
   xtal::Lattice unmapped_child_superlattice{child.lat_column_mat};
   Index child_N_atom = 0;  // no longer used
-  mapping_impl::LatticeNode lattice_node(
+  mapping_impl::LatticeNode lattice_node = mapping_impl::make_lattice_node(
       parent_prim_lattice, parent_superlattice, unmapped_child_prim_lattice,
-      unmapped_child_superlattice, child_N_atom);
+      unmapped_child_superlattice);
+
   std::set<mapping_impl::MappingNode> mappings =
       mapper.map_deformed_struc_impose_lattice_node(
           child, lattice_node, k_best, max_cost, min_cost, keep_invalid);
