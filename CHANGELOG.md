@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Thread safety updates in casm/mapping/impl/ to StrainCostCalculator, LatticeMap, MappingNode, and StrucMapper.
 
 
+## [2.4.1] - 2026-02-25
+
+### Changed
+
+- Restrict libcasm-xtal dependency to major version 2 (`>=2.3.0,<3.0.0`)
+
+
 ## [2.4.0] - 2025-12-15
 
 ### Changed

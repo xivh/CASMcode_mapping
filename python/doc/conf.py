@@ -3,7 +3,7 @@ import os
 # -- package specific configuration --
 project = "libcasm-mapping"
 version = "3.0"  # The short X.Y version.
-release = "3.0.0"  # The full version, including alpha/beta/rc tags.
+release = "3.0a1"  # The full version, including alpha/beta/rc tags.
 project_desc = "CASM structure mapping"
 logo_text = "libcasm-mapping"
 github_url = "https://github.com/prisms-center/CASMcode_mapping/"

@@ -38,7 +38,7 @@ TEST(VersionTest, TestCrystallographyVersion) {
   std::vector<int> version_vec{std::stoi(v_match[1].str()),
                                std::stoi(v_match[2].str()),
                                std::stoi(v_match[3].str())};
-  std::vector<int> min_version{2, 2, 0};
+  std::vector<int> min_version{3, 0, 0};
   EXPECT_TRUE(version_vec >= min_version)
       << "version: " << version_vec << " min_version: " << min_version
       << std::endl;
