@@ -163,11 +163,11 @@ void sym_mapping_test(xtal::BasicStructure struc, Index N) {
         "structure");
     mapping_impl::StrucMapper mapper(
         (mapping_impl::SimpleStrucMapCalculator(sstruc2)));
-    mapping_impl::LatticeNode tnode((xtal::Lattice(sstruc2.lat_column_mat)),
-                                    (xtal::Lattice(sstruc2.lat_column_mat)),
-                                    (xtal::Lattice(sstruc2.lat_column_mat)),
-                                    (xtal::Lattice(sstruc2.lat_column_mat)),
-                                    sstruc2.atom_info.size());
+    mapping_impl::LatticeNode tnode =
+        mapping_impl::make_lattice_node(xtal::Lattice(sstruc2.lat_column_mat),
+                                        xtal::Lattice(sstruc2.lat_column_mat),
+                                        xtal::Lattice(sstruc2.lat_column_mat),
+                                        xtal::Lattice(sstruc2.lat_column_mat));
 
     auto trans_set = mapper.map_deformed_struc_impose_lattice_node(
         sstruc2, tnode, 0, mapping_impl::big_inf(), 1e-3);
