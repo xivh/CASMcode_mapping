@@ -6,8 +6,8 @@ __version__ = "2.4.1"
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import setup
 
-# If on macosx, target 10.15 (ignored otherwise)
-os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.15"
+# If on macosx, target 11.0 (ignored otherwise)
+os.environ["MACOSX_DEPLOYMENT_TARGET"] = "11.0"
 
 # extra_compile_args
 extra_compile_args = [
