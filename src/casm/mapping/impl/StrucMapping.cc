@@ -167,7 +167,6 @@ static void partition_node(MappingNode const &_node,
   Index n = _node.atomic_node.assignment.size();
   MappingNode t1(_node), t2(_node);
 
-  _node.is_partitioned = true;
   t1.is_partitioned = false;
   t2.is_partitioned = false;
 
@@ -397,117 +396,6 @@ LatticeNode::LatticeNode(xtal::Superlattice _parent, xtal::Superlattice _child,
       child.superlattice().lat_column_mat(),
       "LatticeNode constructor error: _parent.superlattice().lat_column_mat() "
       "!= _child.superlattice().lat_column_mat()");
-}
-
-/// \brief Construct a LatticeNode by calculating the deformation tensor that
-/// maps a particular child superlattice to a particular parent superlattice
-/// [deprecated]
-///
-/// \param parent_prim primitive lattice being mapped to (\f$L_1\f$)
-/// \param parent_scel exact integral multiple of parent_prim (\f$L_1 * T_1 *
-///     N\f$)
-/// \param unmapped_child_prim primitive lattice being mapped (\f$L_2\f$)
-/// \param unmapped_child_scel exact integral multiple of child_prim (\f$L_2 *
-///     T_2\f$)
-/// \param child_N_atom is number of sites in the child (Not used)
-/// \param _cost is used to specify mapping cost (in default case -- big_inf()
-/// -- cost will be calculated from scratch)
-///
-/// Note: This method is deprecated. Prefer using \ref make_lattice_node_1.
-LatticeNode::LatticeNode(xtal::Lattice const &parent_prim,
-                         xtal::Lattice const &parent_scel,
-                         xtal::Lattice const &unmapped_child_prim,
-                         xtal::Lattice const &unmapped_child_scel,
-                         Index child_N_atom, double _cost /*=big_inf()*/)
-    : parent(parent_prim, parent_scel),
-      // Transform child_prim lattice to its idealized state using same
-      // F.inverse as below, but inline:
-      child(xtal::Lattice((parent_scel.lat_column_mat() *
-                           unmapped_child_scel.inv_lat_column_mat()) *
-                              unmapped_child_prim.lat_column_mat(),
-                          parent_prim.tol()),
-            parent_scel),
-      cost(_cost) {
-  // see LatticeNode class documentation for more on relations
-
-  // parent_prim = L1
-  // parent_scel = L1 * T1 * N
-  // child_prim = L2
-  // child_scel = L2 * T2
-  // F_reverse * L1 * T1 * N = L2 * T2
-  Eigen::Matrix3d F_reverse =
-      unmapped_child_scel.lat_column_mat() * parent_scel.inv_lat_column_mat();
-
-  // V = U_reverse.inverse()
-  stretch = strain::right_stretch_tensor(F_reverse).inverse();
-
-  // Q = (F_reverse * V).transpose()
-  isometry = (F_reverse * stretch).transpose();
-
-  if (is_inf(cost)) {
-    cost = isotropic_strain_cost(stretch);
-    cost_method = "isotropic_strain_cost";
-  } else {
-    cost_method = "unknown";
-  }
-
-  check_equal(parent.superlattice().lat_column_mat(),
-              stretch * isometry * unmapped_child_scel.lat_column_mat(),
-              "LatticeNode constructor error: "
-              "parent.superlattice().lat_column_mat() != "
-              "stretch * isometry * unmapped_child_scel.lat_column_mat()");
-}
-
-/// \brief Construct a LatticeNode using the mapping calculated by LatticeMap
-/// [deprecated]
-///
-/// \param lattice_map The lattice mapping is used to specify
-/// the parent superlattice and the current solution specifies the deformation
-/// gradient and choice of lattice vectors that map a supercell of the unmapped
-/// child to a supercell of the parent. Specifically:
-/// - \f$ L_1 * T_1 \f$ = `lattice_map.parent_matrix()`
-/// - \f$F_{parent \to child}\f$ = `lattice_map.deformation_gradient()`
-/// - \f$N\f$ = `lattice_map.matrixN`
-/// \param parent_prim primitive lattice being mapped to (\f$L_1\f$)
-/// \param unmapped_child_prim primitive lattice being mapped (\f$L_2\f$)
-///
-/// Note:
-/// - The lattice deformation cost is calculated using the method specified by
-///   `lattice_map`.
-///
-/// Note: This method is deprecated. Prefer using \ref make_lattice_node_2.
-LatticeNode::LatticeNode(LatticeMap const &lattice_map,
-                         xtal::Lattice const &parent_prim,
-                         xtal::Lattice const &unmapped_child_prim)
-    :  // see LatticeNode class documentation for more on relations
-       // V = U_reverse.inverse()
-      stretch(
-          polar_decomposition(lattice_map.deformation_gradient()).inverse()),
-      // Q = (F_reverse * V).transpose()
-      isometry((lattice_map.deformation_gradient() * stretch).transpose()),
-      // parent.prim_lattice() = L1
-      // lattice_map.parent_matrix() = L1 * T1
-      // parent.superlattice() = L1 * T1 * N
-      parent(parent_prim,
-             xtal::Lattice(lattice_map.parent_matrix() * lattice_map.matrixN(),
-                           parent_prim.tol())),
-      // (mapped) child.prim_lattice() = F * L2
-      // (mapped) child.superlattice() = parent.superlattice()
-      child(xtal::Lattice(lattice_map.deformation_gradient().inverse() *
-                              unmapped_child_prim.lat_column_mat(),
-                          parent_prim.tol()),
-            parent.superlattice()),
-      cost(lattice_map.strain_cost()),
-      cost_method(lattice_map.cost_method()) {
-  check_equal(
-      parent.superlattice().lat_column_mat(),
-      child.superlattice().lat_column_mat(),
-      "LatticeNode constructor error: parent.superlattice().lat_column_mat() "
-      "!= child.superlattice().lat_column_mat()");
-  check_equal(
-      lattice_map.deformation_gradient().inverse(), stretch * isometry,
-      "LatticeNode constructor error: "
-      "lattice_map.deformation_gradient().inverse() != stretch * isometry");
 }
 
 /// \brief Construct a LatticeNode by calculating the deformation tensor that
@@ -839,10 +727,12 @@ bool identical(AssignmentNode const &A, AssignmentNode const &B) {
 //*******************************************************************************************
 
 MappingNode MappingNode::invalid() {
-  static MappingNode result(
-      LatticeNode(xtal::Lattice::cubic(), xtal::Lattice::cubic(),
-                  xtal::Lattice::cubic(), xtal::Lattice::cubic(), 1),
-      0.5);
+  LatticeNode lattice_node =
+      make_lattice_node(xtal::Lattice::cubic(), xtal::Lattice::cubic(),
+                        xtal::Lattice::cubic(), xtal::Lattice::cubic());
+  lattice_node.cost = big_inf();
+  lattice_node.cost_method = "invalid";
+  MappingNode result(lattice_node, 0.5);
   result.is_viable = false;
   result.is_valid = false;
   result.is_partitioned = false;
@@ -1503,11 +1393,12 @@ std::set<MappingNode> StrucMapper::map_ideal_struc(
   auto res = xtal::is_equivalent_superlattice(
       derot_c_lat, c_lat, calculator().point_group().begin(),
       calculator().point_group().end(), xtal_tol());
-  LatticeNode lattice_node(
+  LatticeNode lattice_node = make_lattice_node(
       xtal::Lattice(parent().lat_column_mat, xtal_tol()), derot_c_lat, c_lat,
       xtal::Lattice(unmapped_child.lat_column_mat * res.second.cast<double>(),
-                    xtal_tol()),
-      _n_species(unmapped_child), 0. /*strain_cost is zero in ideal case*/);
+                    xtal_tol()));
+  lattice_node.cost = 0.0;
+  lattice_node.cost_method = "ideal";
 
   return map_deformed_struc_impose_lattice_node(
       unmapped_child, lattice_node, k, max_cost, min_cost, keep_invalid);
@@ -1751,17 +1642,13 @@ std::vector<xtal::Lattice> StrucMapper::_lattices_of_vol(Index prim_vol) const {
   // If you specified that you wanted certain lattices, return those, otherwise
   // do the usual enumeration
   if (this->lattices_constrained()) {
-    // This may very well return an empty vector, saving painful time
-    // enumerating things
-    return m_allowed_superlat_map[prim_vol];
+    auto it = m_allowed_superlat_map.find(prim_vol);
+    if (it != m_allowed_superlat_map.end()) return it->second;
+    return {};
   }
 
-  // If we already have candidate lattices for the given volume, return those
-  auto it = m_superlat_map.find(prim_vol);
-  if (it != m_superlat_map.end()) return it->second;
-
-  // We don't have any lattices for the provided volume, enumerate them all!!!
-  std::vector<xtal::Lattice> &lat_vec = m_superlat_map[prim_vol];
+  // Enumerate lattices for the provided volume
+  std::vector<xtal::Lattice> lat_vec;
 
   auto pg = calculator().point_group();
   xtal::SuperlatticeEnumerator enumerator(
@@ -1833,6 +1720,8 @@ Index StrucMapper::k_best_maps_better_than(
   int nfound = 0;
   // Track pairs of supercell volumes that are chemically incompatible
   std::set<std::pair<Index, Index>> vol_mismatch;
+  // Track partitioned nodes explicitly for thread safety
+  std::set<MappingNode const *> partitioned_nodes;
 
   if (k == 0) {
     // If k==0, then we only keep values less than min_cost
@@ -1891,10 +1780,12 @@ Index StrucMapper::k_best_maps_better_than(
           // condition) Skip partitioning if node is already partitioned, or if
           // caller has asked not to
           if (nfound < k || current->cost <= min_cost) {
-            if (!(no_partition || current->is_partitioned)) {
+            if (!(no_partition || current->is_partitioned ||
+                  partitioned_nodes.count(&*current))) {
               Local::partition_node(*current, calculator(), unmapped_child,
                                     symmetrize_atomic_cost(),
                                     std::inserter(queue, current));
+              partitioned_nodes.insert(&*current);
             }
 
             // Keep current node if it is in the solution set if we have been
@@ -1976,7 +1867,8 @@ std::set<MappingNode> StrucMapper::_seed_k_best_from_super_lats(
             k--;
           }
         }
-        LatticeNode lattice_node{lattice_map, p_prim_lat, c_prim_lat};
+        LatticeNode lattice_node =
+            make_lattice_node(lattice_map, p_prim_lat, c_prim_lat);
         result.emplace(lattice_node, this->lattice_weight());
         lattice_map.next_mapping_better_than(max_lattice_cost);
       }

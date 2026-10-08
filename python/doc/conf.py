@@ -2,13 +2,13 @@ import os
 
 # -- package specific configuration --
 project = "libcasm-mapping"
-version = "2.4"  # The short X.Y version.
-release = "2.4.1"  # The full version, including alpha/beta/rc tags.
+version = "3.0"  # The short X.Y version.
+release = "3.0a1"  # The full version, including alpha/beta/rc tags.
 project_desc = "CASM structure mapping"
 logo_text = "libcasm-mapping"
 github_url = "https://github.com/prisms-center/CASMcode_mapping/"
 pypi_url = "https://pypi.org/project/libcasm-mapping/"
-intersphinx_libcasm_packages = [("global", "2.0"), ("xtal", "2.0")]
+intersphinx_libcasm_packages = [("global", "2.0"), ("xtal", "3")]
 
 # -- CASM common configuration ---
 

@@ -6,6 +6,7 @@
 #include "casm/crystallography/SimpleStructureTools.hh"
 #include "casm/crystallography/SymTools.hh"
 #include "casm/crystallography/SymTypeComparator.hh"
+#include "casm/mapping/atom_cost.hh"
 #include "casm/misc/UnaryCompare.hh"
 
 namespace CASM {
@@ -286,28 +287,25 @@ std::vector<Eigen::Vector3d> make_trial_translations(
 ///
 /// under periodic boundary conditions.
 ///
-/// \param site_displacements Container to be populated with
-///     displacements. The values satify the relation
-///     `site[i] + displacements[i][j] == atom[j] + translation`
-///     using the minimum length displacement possible under periodic
-///     boundary conditions with the given lattice.
-/// \param lattice Lattice in which the displacements are calculated
-///     under periodic boundary conditions.
-/// \param site_coordinate_cart A shape=(3,N_site) matrix of Cartesian
-///     coordinates of the sites.
-/// \param atom_coordinate_cart_in_supercell Matrix of shape=(3,N_atom)
-///     containing the Cartesian coordinates of the child structure atoms,
-///     in the state after the inverse lattice mapping deformation is
-///     applied (\f$F^{-1}\vec{r_2}\f$). S1 refers to the ideal
-///     superlattice, S1 = L1 * T * N.
+/// \param lattice_mapping_data Lattice mapping-specific data
 /// \param trial_translation A translation applied to atom coordinates to
 ///     bring the atoms and sites into alignment.
 ///
+/// \returns Container of displacements. The values satify the relation
+///     `site[i] + displacements[i][j] == atom[j] + translation`
+///     using the minimum length displacement possible under periodic
+///     boundary conditions with the given lattice.
+///
 std::vector<std::vector<Eigen::Vector3d>> make_site_displacements(
-    xtal::Lattice const &lattice,
-    Eigen::MatrixXd const &supercell_site_coordinate_cart,
-    Eigen::MatrixXd const &atom_coordinate_cart_in_supercell,
+    LatticeMappingSearchData const &lattice_mapping_data,
     Eigen::Vector3d const &trial_translation) {
+  xtal::Lattice const &supercell_lattice =
+      lattice_mapping_data.supercell_lattice;
+  Eigen::MatrixXd const &supercell_site_coordinate_cart =
+      lattice_mapping_data.supercell_site_coordinate_cart;
+  Eigen::MatrixXd const &atom_coordinate_cart_in_supercell =
+      lattice_mapping_data.atom_coordinate_cart_in_supercell;
+
   if (atom_coordinate_cart_in_supercell.cols() >
       supercell_site_coordinate_cart.cols()) {
     std::cout << "supercell_site_coordinate_cart.T:" << std::endl;
@@ -334,7 +332,7 @@ std::vector<std::vector<Eigen::Vector3d>> make_site_displacements(
   for (Index atom_index = 0; atom_index < N_atom; ++atom_index) {
     for (Index site_index = 0; site_index < N_site; ++site_index) {
       site_displacements[site_index][atom_index] = robust_pbc_displacement_cart(
-          lattice, supercell_site_coordinate_cart.col(site_index),
+          supercell_lattice, supercell_site_coordinate_cart.col(site_index),
           atom_coordinate_cart_in_supercell.col(atom_index) +
               trial_translation);
     }
@@ -364,24 +362,26 @@ std::vector<std::vector<Eigen::Vector3d>> make_site_displacements(
 /// \param f A function used to calculate the atom mapping cost
 ///      to a particular site. Follows the signature of
 ///     `make_atom_mapping_cost`.
-/// \param lattice Lattice in which the displacements are calculated
-///     under periodic boundary conditions.
+/// \param lattice_mapping_data Lattice mapping-specific data
 /// \param site_displacements The site-to-atom displacements,
 ///     of minimum length under periodic boundary conditions.
-/// \param atom_type Vector of size=N_atom containing the
-///     types of the atoms being mapped. May include vacancies.
-///     Any vacancies included in the child atoms **must** be
-///     mapped. Other vacancies may be added if there are more
-///     sites than atoms.
-/// \param allowed_atom_types The atom types allowed on each site
 /// \param infinity The value to use for unallowed mappings
 ///
+/// \returns The cost matrix, shape=(N_site, N_site). The element
+///     `cost_matrix(i, j)` is the cost of mapping the j-th atom to
+///     the i-th site. If there are more sites than atoms,
+///     vacancies are added.
+///
 Eigen::MatrixXd make_cost_matrix(
-    AtomToSiteCostFunction f, xtal::Lattice const &lattice,
+    AtomToSiteCostFunction f,
+    LatticeMappingSearchData const &lattice_mapping_data,
     std::vector<std::vector<Eigen::Vector3d>> const &site_displacements,
-    std::vector<std::string> const &atom_type,
-    std::vector<std::vector<std::string>> const &allowed_atom_types,
     double infinity) {
+  std::vector<std::string> const &atom_type =
+      lattice_mapping_data.structure_data->atom_type;
+  std::vector<std::vector<std::string>> const &allowed_atom_types =
+      lattice_mapping_data.supercell_allowed_atom_types;
+
   if (!f) {
     throw std::runtime_error(
         "Error in make_cost_matrix: atom mapping cost function is empty");
@@ -410,7 +410,7 @@ Eigen::MatrixXd make_cost_matrix(
   for (Index atom_index = 0; atom_index < N_atom; ++atom_index) {
     for (Index site_index = 0; site_index < N_site; ++site_index) {
       cost_matrix(site_index, atom_index) =
-          f(lattice, site_displacements[site_index][atom_index],
+          f(lattice_mapping_data, site_displacements[site_index][atom_index],
             atom_type[atom_index], allowed_atom_types[site_index], infinity);
     }
   }
@@ -418,12 +418,36 @@ Eigen::MatrixXd make_cost_matrix(
   for (Index atom_index = N_atom; atom_index < N_site; ++atom_index) {
     for (Index site_index = 0; site_index < N_site; ++site_index) {
       cost_matrix(site_index, atom_index) =
-          f(lattice, Eigen::Vector3d::Zero(), "Va",
+          f(lattice_mapping_data, Eigen::Vector3d::Zero(), "Va",
             allowed_atom_types[site_index], infinity);
     }
   }
 
   return cost_matrix;
+}
+
+double forward_scale_factor(
+    LatticeMappingSearchData const &lattice_mapping_data) {
+  double N_site = lattice_mapping_data.N_supercell_site;
+  double volume_per_site =
+      std::abs(lattice_mapping_data.supercell_lattice.lat_column_mat()
+                   .determinant()) /
+      N_site;
+  return std::pow(3. * volume_per_site / (4. * M_PI), -2. / 3.);
+}
+
+double reverse_scale_factor(
+    LatticeMappingSearchData const &lattice_mapping_data) {
+  double N_site = lattice_mapping_data.N_supercell_site;
+
+  // L1 * T * N = lattice_mapping_data.supercell_lattice
+  // U * L1 * T * N = L2
+  Eigen::Matrix3d const &U = lattice_mapping_data.lattice_mapping.right_stretch;
+  Eigen::Matrix3d L2 =
+      U * lattice_mapping_data.supercell_lattice.lat_column_mat();
+
+  double volume_per_site = std::abs(L2.determinant()) / N_site;
+  return std::pow(3. * volume_per_site / (4. * M_PI), -2. / 3.);
 }
 
 }  // namespace mapping_impl
@@ -555,7 +579,7 @@ PrimSearchData::PrimSearchData(
       prim_site_coordinate_cart(mapping_impl::make_site_coordinate_cart(*prim)),
       prim_allowed_atom_types(xtal::allowed_molecule_names(*prim)),
       prim_factor_group(override_prim_factor_group == std::nullopt
-                            ? xtal::make_factor_group(*prim, prim_lattice.tol())
+                            ? xtal::make_factor_group(*prim)
                             : std::move(*override_prim_factor_group)),
       prim_crystal_point_group(xtal::make_crystal_point_group(
           prim_factor_group, prim_lattice.tol())),
@@ -581,6 +605,40 @@ PrimSearchData::PrimSearchData(
     throw std::runtime_error(
         "Error in PrimSearchData: Constructed with empty prim_factor_group.");
   }
+
+  auto modes = xtal::generate_invariant_shuffle_modes(
+      prim_factor_group,
+      xtal::make_permutation_representation(*prim, prim_factor_group));
+}
+
+Eigen::MatrixXd PrimSearchData::make_symmetry_preserving_displacement(
+    Eigen::MatrixXd const &displacement,
+    xtal::UnitCellCoordIndexConverter const &unitcellcoord_index_converter)
+    const {
+  if (!this->prim_sym_invariant_displacement_modes.has_value()) {
+    throw std::runtime_error(
+        "Error in PrimSearchData::symmetry_preserving_displacements: "
+        "prim symmetry-invariant displacement modes are not available. Use "
+        "enable_symmetry_breaking_atom_cost when constructing PrimSearchData.");
+  }
+  return CASM::mapping::make_symmetry_preserving_displacement(
+      displacement, unitcellcoord_index_converter,
+      *this->prim_sym_invariant_displacement_modes);
+}
+
+Eigen::MatrixXd PrimSearchData::make_symmetry_breaking_displacement(
+    Eigen::MatrixXd const &displacement,
+    xtal::UnitCellCoordIndexConverter const &unitcellcoord_index_converter)
+    const {
+  if (!this->prim_sym_invariant_displacement_modes.has_value()) {
+    throw std::runtime_error(
+        "Error in PrimSearchData::symmetry_breaking_displacements: "
+        "prim symmetry-invariant displacement modes are not available. Use "
+        "enable_symmetry_breaking_atom_cost when constructing PrimSearchData.");
+  }
+  return CASM::mapping::make_symmetry_breaking_displacement(
+      displacement, unitcellcoord_index_converter,
+      *this->prim_sym_invariant_displacement_modes);
 }
 
 /// \brief Constructor
@@ -652,22 +710,22 @@ std::vector<Eigen::Vector3d> make_trial_translations(
 /// \brief Make the atom mapping cost for a particular atom
 ///     to a particular structure site
 ///
-/// Note:
-/// - Deprecated in v2.3.0. Will be replaced by `atom_to_site_cost_future`,
-///   in >=v3.0.0.
-///
 /// Mapping cost:
 /// - of a vacancy (xtal::is_vacancy is used to check
 /// the atom_type) to any site that allows vacancies is set to 0.0.
 /// - to a site that does not allow the atom type is infinity
+/// - of a displacement on the boundary of the Voronoi cell is set to infinity,
 /// - otherwise, equal to displacement length squared
 ///
+/// \param lattice Lattice in which the displacements are calculated
+///     under periodic boundary conditions.
 /// \param displacement The minimum length displacement, accounting
 ///     for periodic boundaries, from the site to the atom
 /// \param atom_type The atom type.
 /// \param allowed_atom_types The atom types allowed on the site
 /// \param infinity The value to use for unallowed mappings
 double make_atom_to_site_cost(
+    LatticeMappingSearchData const &lattice_mapping_search_data,
     Eigen::Vector3d const &displacement, std::string const &atom_type,
     std::vector<std::string> const &allowed_atom_types, double infinity) {
   // if vacancy is allowed on site, return 0.0; else return infinity
@@ -687,47 +745,7 @@ double make_atom_to_site_cost(
     return infinity;
   }
 
-  // otherwise, return distance squared
-  return displacement.dot(displacement);
-}
-
-/// \brief Make the atom mapping cost for a particular atom
-///     to a particular structure site
-///
-/// Mapping cost:
-/// - of a vacancy (xtal::is_vacancy is used to check
-/// the atom_type) to any site that allows vacancies is set to 0.0.
-/// - to a site that does not allow the atom type is infinity
-/// - of a displacement on the boundary of the Voronoi cell is set to infinity,
-/// - otherwise, equal to displacement length squared
-///
-/// \param lattice Lattice in which the displacements are calculated
-///     under periodic boundary conditions.
-/// \param displacement The minimum length displacement, accounting
-///     for periodic boundaries, from the site to the atom
-/// \param atom_type The atom type.
-/// \param allowed_atom_types The atom types allowed on the site
-/// \param infinity The value to use for unallowed mappings
-double make_atom_to_site_cost_future(
-    xtal::Lattice const &lattice, Eigen::Vector3d const &displacement,
-    std::string const &atom_type,
-    std::vector<std::string> const &allowed_atom_types, double infinity) {
-  // if vacancy is allowed on site, return 0.0; else return infinity
-  if (xtal::is_vacancy(atom_type)) {
-    for (auto const &allowed_type : allowed_atom_types) {
-      if (xtal::is_vacancy(allowed_type)) {
-        return 0.0;
-      }
-    }
-    return infinity;
-  }
-
-  // if non-vacancy is not allowed on site, return infinity
-  auto begin = allowed_atom_types.begin();
-  auto end = allowed_atom_types.end();
-  if (std::find(begin, end, atom_type) == end) {
-    return infinity;
-  }
+  xtal::Lattice const &lattice = lattice_mapping_search_data.supercell_lattice;
 
   Eigen::Vector3d lattice_trans;
   double v_dist = lattice.max_voronoi_measure(displacement, lattice_trans);
@@ -744,8 +762,30 @@ double make_atom_to_site_cost_future(
     return infinity;
   }
 
-  // otherwise, return distance squared
-  return displacement.dot(displacement);
+  // Otherwise, return a displacement cost that is symmetric
+  // with respect to displacements being defined as
+  // parent -> child or child -> parent:
+
+  // The reverse displacement (child -> parent) is d_reverse = -U * d
+  // (See make_isotropic_atom_cost)
+
+  // Right stretch tensor, U
+  Eigen::Matrix3d const &U =
+      lattice_mapping_search_data.lattice_mapping.right_stretch;
+
+  // Volume scaling factor:
+  double f1 = mapping_impl::forward_scale_factor(lattice_mapping_search_data);
+  double f2 = mapping_impl::reverse_scale_factor(lattice_mapping_search_data);
+
+  // M = (f1 * I + f2 * U^2) / 2
+  Eigen::Matrix3d M = (f1 * Eigen::Matrix3d::Identity() + f2 * (U * U)) / 2.0;
+
+  // d.t * M * d = ((U*d).t * (U*d) + d.t * d) / 2 is a measure of
+  // the displacement length that accounts for the lattice mapping
+  // deformation, and is symmetric with respect to parent -> child
+  // and child -> parent displacements, consistent with the
+  // isotropic atom cost as calculated in make_isotropic_atom_cost.
+  return displacement.dot(M * displacement);
 }
 
 /// \brief Constructor
@@ -769,14 +809,10 @@ AtomMappingSearchData::AtomMappingSearchData(
     : lattice_mapping_data(std::move(_lattice_mapping_data)),
       trial_translation_cart(_trial_translation_cart),
       site_displacements(mapping_impl::make_site_displacements(
-          lattice_mapping_data->supercell_lattice,
-          lattice_mapping_data->supercell_site_coordinate_cart,
-          lattice_mapping_data->atom_coordinate_cart_in_supercell,
-          trial_translation_cart)),
+          *lattice_mapping_data, trial_translation_cart)),
       cost_matrix(mapping_impl::make_cost_matrix(
-          _atom_to_site_cost_f, lattice_mapping_data->supercell_lattice,
-          site_displacements, lattice_mapping_data->structure_data->atom_type,
-          lattice_mapping_data->supercell_allowed_atom_types, _infinity)) {}
+          _atom_to_site_cost_f, *lattice_mapping_data, site_displacements,
+          _infinity)) {}
 
 }  // namespace mapping
 }  // namespace CASM
