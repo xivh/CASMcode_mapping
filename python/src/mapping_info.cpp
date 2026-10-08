@@ -419,7 +419,7 @@ PYBIND11_MODULE(_mapping_info, m) {
           )pbdoc")
       .def(
           "atom_cost", [](ScoredAtomMapping const &m) { return m.atom_cost; },
-          "Returns the lattice mapping cost.")
+          "Returns the atom mapping cost.")
       .def_static(
           "from_dict",
           [](const nlohmann::json &data) -> mapping::ScoredAtomMapping {
